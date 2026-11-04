@@ -1,6 +1,11 @@
 library(rhandsontable)
 
-rcbd_gen_server = function(input, output, session) {
+rcbd_gen_server = function(input, output, session, error_support=NULL) {
+  if(!is.null(error_support)) {
+    observe <- error_support$observe
+    observeEvent <- error_support$observeEvent
+    downloadHandler <- error_support$downloadHandler
+  }
   observeEvent(session$input$rcbd_logout, {
     session$reload()
   })

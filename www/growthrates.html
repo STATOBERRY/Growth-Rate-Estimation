@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CGR, CAGR and annual growth</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            color: #333;
+        }
+        h2 {
+            color: #555;
+        }
+        p, li {
+            color: #666;
+        }
+        .formula {
+            background-color: #eef;
+            padding: 10px;
+            border-radius: 5px;
+            display: inline-block;
+            font-size: 1.2em;
+        }
+        ul {
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>What is CGR vs CAGR?</h1>
+    <p>
+        The <b>Analysis Results</b> table reports three growth rates for every series. They answer the
+        same question, "how fast did it grow each year?", but use the data differently.
+    </p>
+
+    <h2>Compound Growth Rate (CGR)</h2>
+    <p>
+        CGR fits a log-linear (exponential) trend through <b>all the years</b>:
+    </p>
+    <div class="formula">
+        ln(<i>y</i>) = <i>a</i> + <i>b</i>·<i>t</i> &nbsp;&nbsp;&rArr;&nbsp;&nbsp; CGR = (e<sup><i>b</i></sup> &minus; 1) &times; 100
+    </div>
+    <ul>
+        <li><i>t</i> is the number of years since the first year.</li>
+        <li><b>CGR p</b> is the p-value of <i>b</i>. Below the chosen level of significance (&alpha;), the
+            growth is statistically significant.</li>
+        <li>Because every year contributes, CGR is the standard choice for agricultural growth studies.</li>
+    </ul>
+
+    <h2>Compound Annual Growth Rate (CAGR)</h2>
+    <p>
+        CAGR uses <b>only the first and the last year</b>:
+    </p>
+    <div class="formula">
+        CAGR = [ (<i>y</i><sub>last</sub> / <i>y</i><sub>first</sub>)<sup>1 / (years between)</sup> &minus; 1 ] &times; 100
+    </div>
+    <p>
+        It is quick and intuitive but sensitive to the end points: an unusually good or bad first or
+        last year changes it a lot. When CGR and CAGR disagree strongly, look at the trend plot.
+    </p>
+
+    <h2>Annual average growth</h2>
+    <p>
+        The simple mean of the year-on-year percentage changes. It is easy to explain but is pulled
+        up or down by single extreme years.
+    </p>
+
+    <h2>Why is a rate blank?</h2>
+    <ul>
+        <li>CGR and CAGR take logarithms or ratios, so they need <b>strictly positive</b> values.
+            Zero, negative and missing values are skipped.</li>
+        <li>CGR needs at least <b>3</b> usable years and CAGR at least <b>2</b>. With fewer, the
+            rate is left blank.</li>
+        <li>If many values are skipped, check the column for zeros typed instead of blanks or for text
+            entries such as "NA" or "-".</li>
+    </ul>
+</body>
+</html>

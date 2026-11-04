@@ -1,4 +1,4 @@
-########### global of RAISINS RM-ANOVA One-Way  (Single Universe: shared code in greyskull)
+########### global of RAISINS Growth Rate Estimation  (Single Universe: shared code in greyskull)
 options(shiny.maxRequestSize = 100 * 1024^2) # bounded large-file uploads: 100 MiB
 
 ##Packages----
@@ -57,6 +57,7 @@ library(rintrojs)
 library(later)
 library(httr2)
 library(digest)
+library(shinymanager)
 
 ### Shared RAISINS layer: login, session kit, SSO, support, feedback, page shell----
 library(greyskull)
@@ -101,7 +102,8 @@ raisins_use_app(gre_config)
 #########################PANEL PATH (Growth-Rate-specific modules only)
 source("dir/core_aliases.R", local = TRUE)
 
-# Growth Rate Estimation analysis engine (replaces the ANOVA engine)
+# RBD layout: plot workspace plus main UI/server (including tour, support and interpretation).
+source("dir/gre_plot_workspace.R", local = TRUE)
 source("dir/gre_ui.R", local = TRUE)
 source("dir/gre_server.R", local = TRUE)
 
@@ -112,8 +114,7 @@ source("dir/rcbd_gen_ui.R", local = TRUE)
 source("dir/rcbd_dataset_server.R", local = TRUE)
 source("dir/rcbd_dataset_ui.R", local = TRUE)
 
-# Table/font styles used by the report (doe_tstyle_* / doe_font_*).
-source("dir/doe_presentation.R", local = TRUE)
+# Table/font styles come directly from greyskull, as in RBD.
 
 # NOTE: the RA-One AI assistant (dir/AI/*) is NOT wired in v1. Its chat server is
 # invoked from inside the old ANOVA engine and needs a Growth-Rate chat context +

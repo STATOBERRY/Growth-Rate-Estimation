@@ -2,9 +2,7 @@
 ## They keep the analysis code, reports and tests working unchanged.
 ## New code should call the raisins_* names from greyskull directly.
 ##
-## NOTE: this app's table styles (doe_tstyle_* / doe_font_*) stay per-app in
-## dir/doe_presentation.R for now; converging them onto greyskull's shared
-## raisins_tstyle_* is an optional later step.
+## Table and font styles are called directly through greyskull in the analysis and report.
 
 rcbd_static_ui            <- greyskull::raisins_static_ui
 rcbd_login_email          <- greyskull::raisins_login_email

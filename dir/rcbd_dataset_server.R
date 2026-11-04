@@ -1,4 +1,9 @@
-rcbd_dataset_server = function(input, output, session) {
+rcbd_dataset_server = function(input, output, session, error_support=NULL) {
+  if(!is.null(error_support)) {
+    observe <- error_support$observe
+    observeEvent <- error_support$observeEvent
+    downloadHandler <- error_support$downloadHandler
+  }
   
   output$fruit_healthdata_intro <- renderUI({
     HTML(

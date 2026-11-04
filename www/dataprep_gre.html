@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preparing your data for Growth Rate Estimation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            color: #333;
+        }
+        h2 {
+            color: #555;
+        }
+        p, li {
+            color: #666;
+        }
+        table {
+            border-collapse: collapse;
+            margin: 10px 0;
+            font-size: 0.95em;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 4px 12px;
+            text-align: center;
+        }
+        th {
+            background-color: #eef;
+            color: #333;
+        }
+        ul {
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>How to prepare and upload your file?</h1>
+    <p>
+        The module works on <b>yearly time-series data</b>: one row per year (or time point) and one
+        column for every series you want to study, such as Area, Production or Yield. Save the sheet as
+        <b>CSV</b> or <b>Excel (.xlsx / .xls)</b> and upload it from the sidebar of the
+        <b>Analysis Results</b> tab.
+    </p>
+
+    <h2>Layout of a single series file</h2>
+    <table>
+        <tr><th>Year</th><th>Area</th><th>Production</th><th>Yield</th></tr>
+        <tr><td>2001</td><td>1820</td><td>12800</td><td>7033</td></tr>
+        <tr><td>2002</td><td>1835</td><td>12950</td><td>7057</td></tr>
+        <tr><td>2003</td><td>1848</td><td>13100</td><td>7089</td></tr>
+        <tr><td>…</td><td>…</td><td>…</td><td>…</td></tr>
+    </table>
+    <ul>
+        <li><b>Year column:</b> numbers only (2001, 2002, …). The app picks the column whose name contains
+            <i>year</i>, <i>yr</i> or <i>time</i>; you can change it in the yellow <b>Year column</b> picker.</li>
+        <li><b>Series columns:</b> every numeric column other than the year is offered in the
+            <b>Series columns</b> picker, and all of them are selected by default.</li>
+        <li>At least <b>3 years</b> of data are needed; 10 or more give far more reliable trends.</li>
+    </ul>
+
+    <h2>Panel data (several regions or districts)</h2>
+    <p>
+        If the file has a text column such as <i>District</i> or <i>Region</i>, with one row per
+        year and district, choose it in the <b>Group column</b> picker. The series are then
+        <b>summed by year</b>, so the analysis describes the total across all groups.
+    </p>
+    <table>
+        <tr><th>Year</th><th>District</th><th>Area</th><th>Production</th></tr>
+        <tr><td>2014</td><td>North</td><td>520</td><td>4300</td></tr>
+        <tr><td>2014</td><td>Central</td><td>610</td><td>5200</td></tr>
+        <tr><td>2014</td><td>South</td><td>871</td><td>7700</td></tr>
+    </table>
+
+    <h2>Good practice</h2>
+    <ul>
+        <li>Keep the first row as column names and avoid merged cells, notes or totals below the data.</li>
+        <li>Use plain names such as <b>Area</b> and <b>Production</b>; the decomposition step looks for
+            these words in the column names.</li>
+        <li>Keep units consistent across years (for example, always hectares and tonnes).</li>
+        <li>Leave a missing year blank rather than typing 0; a zero is treated as a real value.</li>
+    </ul>
+
+    <h2>Running the analysis</h2>
+    <p>
+        After the upload, check the three pickers, tick the analyses you need under
+        <b>Trend analyses to run</b> and press <b>Run Analysis!</b>. The level of significance,
+        font and table style can then be changed in the green options panel above the results.
+        In Preview Mode, uploads are disabled: choose one of the built-in coconut datasets instead.
+    </p>
+</body>
+</html>

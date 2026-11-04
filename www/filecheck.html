@@ -54,29 +54,31 @@
       <li>
         <strong>Check the datatable below:</strong>
         <ul>
-          <li>The treatment columns should be highlighted in <span class="highlight-yellow">yellow</span> or <span class="highlight-green">green</span>. <span class="tick">✔</span></li>
-          <li>All numerical values should appear in <span class="highlight-green">green</span>. <span class="tick">✔</span></li>
-        <li><span class="bold-blue">If both above conditions are met, your file is in good health.</span>. <span class="tick">✔</span></li>
+          <li>The <b>year</b> column should appear in <span class="highlight-green">green</span> (numbers such as 2001, 2002, ...). <span class="tick">✔</span></li>
+          <li>Every series you want to analyse (for example Area, Production, Yield) should appear in <span class="highlight-green">green</span>. <span class="tick">✔</span></li>
+          <li>A district or region column, if present, is text and appears in <span class="highlight-yellow">yellow</span>. Text group labels are valid. <span class="tick">✔</span></li>
+          <li><span class="bold-blue">Colours help check data types; they do not prove the series are correct.</span> Each year should appear once, unless the file has one row per district or region and a Group column is chosen.</li>
         </ul>
       </li>
       <li>
         <strong>Identify and Correct Errors:</strong>
         <ul>
-          <li>If any columns, other than the treatment name column, appear in <span class="highlight-yellow">yellow</span>, there may be issues with numerical inputs in that column, such as:</li>
+          <li>If a year or series column appears in <span class="highlight-yellow">yellow</span>, its numbers are being read as text. Inspect it for issues such as:</li>
           <ul>
-            <li>Spaces between numbers</li>
+            <li>Spaces between numbers or thousands separators (1,820)</li>
             <li>Incorrect decimal points</li>
+            <li>Text entries such as "NA", "-" or "n/a"</li>
           </ul>
-          <li>Carefully review these yellow-highlighted columns for any input errors and correct them. <span class="cross">✘</span></li>
+          <li>Carefully review these yellow-highlighted columns and correct them in your original file. <span class="cross">✘</span></li>
         </ul>
       </li>
       <li>
         <strong>Address Missing Values:</strong>
         <ul>
           <li>Cells highlighted in <span class="highlight-red">red</span> indicate missing values. <span class="cross">✘</span></li>
-          <li>No missing values are permitted in the data.</li>
-          <li>Either delete the rows or columns with missing values from your Excel file.</li>
-          <li>Some rows or columns may appear red even if they seem empty. This usually happens if there are residual NA values after deletion. To fix this, select the affected rows or columns in your Excel file, right-click, and choose "Clear Contents," or delete them entirely.</li>
+          <li>A missing year is left out of the calculations for that series only; it is not replaced or filled in.</li>
+          <li>Leave a genuinely missing year blank. Do not type 0: a zero is treated as a real value, and compound growth rates (CGR, CAGR) cannot use zero or negative values.</li>
+          <li>Some rows or columns may appear red even if they seem empty. This usually happens if there are residual values after deletion. Select the affected rows or columns in your Excel file, right-click, and choose "Clear Contents", or delete them entirely.</li>
         </ul>
       </li>
     </ol>
