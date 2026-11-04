@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Preparation Instructions</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+        }
+        h1, h2 {
+            color: #2c3e50;
+        }
+        h1 {
+            font-size: 24px;
+        }
+        h2 {
+            font-size: 20px;
+            margin-top: 20px;
+        }
+        p {
+            margin: 10px 0;
+        }
+        code {
+            background-color: #f4f4f4;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+        .example {
+            background-color: #f9f9f9;
+            padding: 10px;
+            border-left: 3px solid #2c3e50;
+            margin: 10px 0;
+        }
+        ul {
+            margin: 10px 0 10px 20px;
+        }
+           table {
+    border-collapse: collapse;
+    width: auto; /* Adjusts the table width to fit its contents */
+    margin-top: 10px;
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    white-space: nowrap; /* Prevents wrapping of text, keeping cells as small as possible */
+}
+
+th {
+    background-color: #2c3e50;
+    color: white;
+}
+
+        img {
+            max-width: 100%;
+            height: auto;
+            margin-top: 20px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>Instruction Manual for Data Preparation</h1>
+
+    <h2>1. Overview</h2>
+    <p>RAISINS allows for analyzing multiple characters simultaneously.
+    So you can enter the observations for all characters for a particular set of subjects in a single excel file.</p>
+    <p>This is a <strong>one-way repeated measures ANOVA</strong>, so the same subjects (experimental units such as plots, animals, or patients) are measured repeatedly across several days/time points. There is a single within-subject factor &ndash; the <strong>Day/Time</strong> &ndash; and each subject is measured once at every day.</p>
+
+    <h2>2. Creating a Data File in MS Excel</h2>
+    <ul>
+      <li>Open a new microsoft excel file, use single sheet only.</li>
+        <li><strong>Start with Cell A1:</strong> Open a new MS Excel file and begin entering data from cell A1. Do not leave any blank rows above.</li>
+        <li><strong>First Row - Column Names:</strong> The first row must contain the column names.
+            <ul>
+                <li><strong>Column 1:</strong> should be Subject (identifies each experimental unit that is measured repeatedly)</li>
+                <li><strong>Column 2:</strong> should be Day/Time (the repeated measurement occasion)</li>
+                <li><strong>From Column 3 Onwards:</strong> Enter the names of each character under study as separate columns (e.g., <code>char1</code>, <code>char2</code>, <code>char3</code>).
+                You can give any names to the subject, day, and character columns.</li>
+            </ul>
+        </li>
+    </ul>
+    <h2>3. Entering the Data</h2>
+    <p>Here&rsquo;s an example with 3 subjects, each measured on 3 days
+    (In this example we&rsquo;ve only shown 3 subjects &ndash; you may need more, statistically speaking!).
+    Notice that every subject appears once at each day, so each subject has a complete profile across time.</p>
+    <div class="example">
+    <table border="1" cellpadding="5" cellspacing="0">
+        <thead>
+        <tr>
+           <th>Subject</th>
+           <th>Day</th>
+            <th>char1</th>
+            <th>char2</th>
+            <th>char3</th>
+        </tr>
+        </thead>
+    <tbody>
+            <tr>
+                <td>S1</td>
+                <td>D1</td>
+                <td>2.5</td>
+                <td>3.34</td>
+                <td>10.2</td>
+            </tr>
+            <tr>
+                <td>S1</td>
+                <td>D2</td>
+                <td>2.7</td>
+                <td>4.0</td>
+                <td>12.2</td>
+            </tr>
+            <tr>
+                <td>S1</td>
+                <td>D3</td>
+                <td>3.9</td>
+                <td>5.4</td>
+                <td>14.4</td>
+            </tr>
+            <tr>
+                <td>S2</td>
+                <td>D1</td>
+                <td>3.8</td>
+                <td>4.7</td>
+                <td>10.6</td>
+            </tr>
+            <tr>
+                <td>S2</td>
+                <td>D2</td>
+                <td>5.3</td>
+                <td>6.4</td>
+                <td>12.1</td>
+            </tr>
+            <tr>
+                <td>S2</td>
+                <td>D3</td>
+                <td>6.8</td>
+                <td>7.0</td>
+                <td>15.7</td>
+            </tr>
+            <tr>
+                <td>S3</td>
+                <td>D1</td>
+                <td>2.7</td>
+                <td>3.5</td>
+                <td>10.5</td>
+            </tr>
+            <tr>
+                <td>S3</td>
+                <td>D2</td>
+                <td>3.3</td>
+                <td>6.3</td>
+                <td>14.2</td>
+            </tr>
+            <tr>
+                <td>S3</td>
+                <td>D3</td>
+                <td>6.2</td>
+                <td>7.1</td>
+                <td>16.2</td>
+            </tr>
+    </tbody>
+    </table>
+</div>
+<h2>How entered data looks like in MS Excel</h2>
+    <p>Below is an example image of how your data should be structured: Here you can see each subject is measured on every day, so it appears once per day.</p>
+    <img src="https://firebasestorage.googleapis.com/v0/b/raisins-2025.firebasestorage.app/o/ORMANOVA%2Fdatacreate.webp?alt=media" alt="Example of Data Structure">
+    <p><strong>Observation Entry:</strong> Enter the corresponding observations for each character under each day for every subject. Make sure all data is entered correctly.</p>
+
+    <h2>4. File Format Recommendation</h2>
+    <ul>
+        <li>You can upload the <code>.xls</code> format (excel file itself) directly. If your data file large we may also recommend a <code>.csv</code> format for smooth data handling.</li>
+    </ul>
+
+    <h2>5. Naming Columns</h2>
+    <ul>
+        <li><strong>Keep It Simple and Straight (KISS):</strong> Use simple and short names for column headers.</li>
+        <li><strong>Avoid Complexity:</strong> Do not include units, special characters, or spaces in names (e.g., use <code>char1</code> instead of <code>Character 1</code>).</li>
+        <li>This helps ensure the names appear neatly in plots and outputs.</li>
+    </ul>
+
+    <h2>6. Creating Data Using the App (Recommended Method)</h2>
+    <ul>
+        <li><strong>Navigate to "Create Data" Tab:</strong> Click on the <em>Create Dataset</em> tab in the main menu at the top of the app.</li>
+    <img src="https://firebasestorage.googleapis.com/v0/b/raisins-2025.firebasestorage.app/o/ORMANOVA%2Fcreate.png?alt=media" alt="Create Data" style="width: 800px; height: auto;">
+
+
+        <li><strong>Specify Details:</strong> Enter the number of subjects, days/time points, and number of characters under study in the window that opens. Then click create.</li>
+        <li><strong>Model Data Entry File:</strong> A template for data entry will be generated. You can:
+            <ul>
+                <li>Directly enter your data into this template.</li>
+                <li>Or, copy-paste data from an existing Excel file.</li>
+            </ul>
+        </li>
+        <li><strong>Download as CSV:</strong> Once the data is entered, click on the <em>Download CSV File</em> button. The downloaded CSV file can be uploaded for analysis in Analysis tab.</li>
+    </ul>
+    <h2>Image below shows the window of Create Data tab</h2>
+ <img src="https://firebasestorage.googleapis.com/v0/b/raisins-2025.firebasestorage.app/o/ORMANOVA%2Fcreated.webp?alt=media" alt="Create Data Window" style="width: 800px; height: auto;">
+    <h2>7. Uploading the Data File for Analysis</h2>
+    <ul>
+        <li><strong>Upload the Prepared CSV/XLS File:</strong> Go to the <em>Analysis</em> tab and upload your prepared data file, then select the <strong>Subject</strong> column and the <strong>Day/Time</strong> column along with the characters to analyse.</li>
+        <li><strong>Ensure Clean Data:</strong> Keep the file focused on the data; avoid adding any extra information or notes outside the data area.</li>
+    </ul>
+
+    <p>By following these instructions, you will have a well-prepared data file ready for analysis, allowing you to process multiple characters together.</p>
+
+</body>
+</html>

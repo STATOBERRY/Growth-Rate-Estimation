@@ -1,0 +1,84 @@
+---
+title: "Summary Statistics"
+output:
+  pdf_document:
+    latex_engine: xelatex
+  word_document: default
+  html_document:
+    df_print: kable
+params:
+  table_style: "classic"
+  font: "cambria"
+  tables: NULL
+header-includes:
+- \usepackage{booktabs}
+- \usepackage{longtable}
+- \usepackage{array}
+- \usepackage{multirow}
+- \usepackage{wrapfig}
+- \usepackage{float}
+- \usepackage{colortbl}
+- \usepackage{pdflscape}
+- \usepackage{tabu}
+- \usepackage{threeparttable}
+- \usepackage{threeparttablex}
+- \usepackage[normalem]{ulem}
+- \usepackage{makecell}
+- \usepackage{xcolor}
+---
+
+```{r setup, include=FALSE}
+## ##sumstat(06-10-26) all Summary stats tables in one report (HTML / PDF / Word)
+knitr::opts_chunk$set(echo = FALSE, error = TRUE)
+library(knitr)
+library(kableExtra)
+library(dplyr)
+## table style chosen in the app (classic = original look)
+if (exists("doe_tstyle_knitr_hook", mode = "function")) doe_tstyle_knitr_hook(params$table_style)
+```
+
+```{r table-style-css, echo=FALSE, results='asis'}
+## HTML: the same table style as on screen, tables centred
+if (knitr::is_html_output()) {
+  css <- "table { margin-left: auto !important; margin-right: auto !important; } caption { text-align: center; }"
+  if (exists("doe_tstyle_css", mode = "function")) css <- paste(css, doe_tstyle_css(params$table_style))
+  cat("<style>\n", css, "\n</style>\n", sep = "")
+}
+```
+
+```{r tables, echo=FALSE, results='asis'}
+tabs <- params$tables
+if (is.null(tabs) || length(tabs) == 0) {
+  cat("No summary statistics available.\n")
+} else {
+  for (i in seq_along(tabs)) {
+    variable_name <- names(tabs)[i]
+    tb <- as.data.frame(tabs[[i]], check.names = FALSE)
+    cap <- paste0("Summary statistics of ", variable_name)
+
+    if (knitr::is_html_output()) {
+      out <- tb %>%
+        kableExtra::kbl(caption = cap, align = "c", row.names = FALSE) %>%
+        kableExtra::kable_styling(bootstrap_options = "bordered",
+                                  full_width = FALSE, position = "center") %>%
+        kableExtra::kable_classic(full_width = FALSE, position = "center",
+                                  html_font = params$font)
+      cat(out, "\n\n")
+    } else if (knitr::is_latex_output()) {
+      ## caption is not escaped by kbl, so escape LaTeX specials (e.g. plant_height)
+      cap_tex <- gsub("([_%&#$])", "\\\\\\1", cap)
+      out <- tb %>%
+        kableExtra::kbl(caption = cap_tex, label = paste0("sumstat", i), format = "latex", align = "c",
+                        booktabs = TRUE, linesep = "", row.names = FALSE) %>%
+        kableExtra::kable_styling(position = "center", full_width = FALSE,
+                                  latex_options = c("striped", "repeat_header", "scale_down", "H"))
+      cat(out, "\n\n")
+    } else {
+      ## Word: pipe table, centred columns
+      print(knitr::kable(tb, format = "pipe", caption = cap, align = "c", row.names = FALSE))
+      cat("\n\n")
+    }
+  }
+  cat("\nSD = Standard Deviation; SE = Standard Error; CV(%) = Coefficient of Variation\n")
+}
+```

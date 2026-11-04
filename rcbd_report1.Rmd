@@ -1,0 +1,211 @@
+---
+title: "Pairwise Comparison Report"
+output:
+  pdf_document: default
+  word_document:
+    reference_docx: "styles.docx"
+  html_document:
+    mathjax: "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
+    df_print: kable
+params:
+  doe_table_style: "classic"
+  doe_font: "cambria"
+  doe_scale_note: ""
+  doe_exact_tables: NULL
+  pairwise_Treatment: NA
+  char: NA
+  mcp: NA
+  pair_wise: FALSE
+
+header-includes:
+- \usepackage{booktabs}
+- \usepackage{longtable}
+- \usepackage{array}
+- \usepackage{multirow}
+- \usepackage{wrapfig}
+- \usepackage{float}
+- \usepackage{colortbl}
+- \usepackage{pdflscape}
+- \usepackage{tabu}
+- \usepackage{threeparttable}
+- \usepackage{threeparttablex}
+- \usepackage[normalem]{ulem}
+- \usepackage{makecell}
+- \usepackage{xcolor}
+- \usepackage{wallpaper}
+- \usepackage{atbegshi}
+- \AtBeginDocument{\ULCornerWallPaper{0.99}{banner1.jpg}}
+- \AtBeginShipoutFirst{\ULCornerWallPaper{0.99}{banner1.jpg}}
+- \AtBeginShipout{\ClearWallPaper}
+---
+
+```{r setup, include=FALSE}
+if (exists("doe_tstyle_knitr_hook", mode = "function")) doe_tstyle_knitr_hook(params$doe_table_style)
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(knitr)
+library(kableExtra)
+library(dplyr)
+library(htmltools)
+library(flextable)
+```
+
+```{r doe-presentation-css, echo=FALSE, results='asis'}
+if (knitr::is_html_output() && exists("doe_tstyle_css", mode = "function")) {
+  cat("<style>", doe_tstyle_css(params$doe_table_style), "body, table {font-family:'", params$doe_font, "';}</style>", sep = "")
+}
+```
+
+
+\newcommand\Perc{\%}
+
+```{r, echo=FALSE, results='asis'}
+
+# -------------------------------------------------------------------------
+# One-way repeated measures: a single within-subject factor (Day).
+# The single pairwise table is carried in params$pairwise_Treatment.
+# -------------------------------------------------------------------------
+
+pairwise_Day <- as.data.frame(params$pairwise_Treatment)
+
+char      <- params$char
+mcp       <- params$mcp
+pair_wise <- isTRUE(params$pair_wise)
+
+has_rows <- function(x) {
+  !is.null(x) && is.data.frame(x) && nrow(x) > 0
+}
+
+# Clean HTML superscript and symbols for PDF output
+clean_latex_table <- function(df) {
+  if (is.null(df) || !is.data.frame(df)) return(df)
+  df[] <- lapply(df, function(x) {
+    x <- as.character(x)
+    x <- gsub("<sup>", "$\\\\textsuperscript{", x)
+    x <- gsub("</sup>", "}$", x)
+    x <- gsub("<br>|</br>|<br/>", " \\\\ ", x)
+    x <- gsub("&plusmn;|±", "$\\\\pm$", x)
+    x <- gsub("%", "\\\\%", x)
+    x <- gsub("&", "\\\\&", x)
+    x
+  })
+  colnames(df) <- gsub("%", "\\\\Perc", colnames(df))
+  colnames(df) <- gsub("_", ".", colnames(df))
+  rownames(df) <- gsub("%", "\\\\Perc", rownames(df))
+  rownames(df) <- gsub("_", ".", rownames(df))
+  df
+}
+
+# Clean HTML superscript for Word output
+replace_superscripts <- function(text) {
+  text <- as.character(text)
+  text <- gsub("<sup>\\*\\*</sup>", "**", text)
+  text <- gsub("<sup>\\*</sup>", "*", text)
+  # Trim spaces inside the tag so pandoc renders ^a^ (a real superscript) and
+  # not a literal ^ a ^ (pandoc needs no space between the carets).
+  text <- gsub("<sup>[[:space:]]*([^<]*[^[:space:]<])[[:space:]]*</sup>", "^\\1^", text)
+  text <- gsub("<sup>\\s*</sup>", "", text)
+  text <- gsub("<br>|</br>|<br/>", "\n", text)
+  text <- gsub("&plusmn;", "±", text)
+  text
+}
+
+clean_word_table <- function(df) {
+  if (is.null(df) || !is.data.frame(df)) return(df)
+  df[] <- lapply(df, replace_superscripts)
+  df
+}
+
+# Generic table printer
+print_table <- function(df, caption, table_no = NULL) {
+  if (!has_rows(df)) return(invisible(NULL))
+  full_caption <- if (!is.null(table_no)) paste0("Table ", table_no, ": ", caption) else caption
+
+  if (knitr::is_html_output()) {
+    tbl <- df %>%
+      kableExtra::kbl(
+        caption = full_caption,
+        align = "c",
+        escape = FALSE,
+        row.names = FALSE
+      ) %>%
+      kableExtra::kable_styling(
+        bootstrap_options = "bordered",
+        full_width = FALSE,
+        latex_options = "booktabs"
+      ) %>%
+      kableExtra::kable_classic(full_width = FALSE)
+    cat(tbl)
+    cat("<br><br>")
+  }
+
+  if (knitr::is_latex_output()) {
+    df_latex <- clean_latex_table(df)
+    tbl <- df_latex %>%
+      kableExtra::kbl(
+        caption = full_caption,
+        format = "latex",
+        escape = FALSE,
+        align = "c",
+        booktabs = TRUE,
+        linesep = "",
+        row.names = FALSE
+      ) %>%
+      kableExtra::kable_styling(
+        position = "center",
+        latex_options = c("striped", "repeat_header", "scale_down", "H"),
+        full_width = FALSE
+      )
+    print(tbl)
+  }
+
+  if (knitr::pandoc_to("docx")) {
+    df_word <- clean_word_table(df)
+    tbl <- df_word %>%
+      knitr::kable(
+        caption = full_caption,
+        align = "c",
+        row.names = FALSE,
+        escape = FALSE
+      )
+    print(tbl)
+    cat("\n\n")
+  }
+}
+
+if (has_rows(pairwise_Day)) {
+  cat("## Pairwise comparison report for ", char, "\n\n", sep = "")
+
+  if (!is.null(mcp) && !is.na(mcp)) {
+    cat("**Multiple comparison procedure:** ", mcp, "\n\n", sep = "")
+  }
+
+  cat("This report presents pairwise comparisons for the Day (within-subject) factor. The table shows estimated differences, SE(d), degrees of freedom, t ratio, p value with significance mark, and CD value.\n\n")
+
+  print_table(
+    pairwise_Day,
+    paste("Pairwise Comparison of Days for", char),
+    table_no = 1
+  )
+
+  cat("\n\n**Significance notation:** `**` = significant at 1% level; `*` = significant at 5% level; `NS` = non-significant.\n\n")
+  cat("**Abbreviations:** SE(d) = Standard error of difference; DF = Degrees of freedom; CD = Critical difference.\n\n")
+  ## ##arshi(15-08-26) rounding note - significance comes from the model, not from the CD column
+  cat("**Note:** Significance shown in the table above is computed from the fitted model at full precision; it is not obtained by comparing the estimates against the rounded CD value. The CD values shown are rounded to the number of decimal places selected in the app.\n\n")
+} else {
+  cat("No pairwise comparison table was supplied to the report. Please check the `params` list passed from Shiny.\n")
+}
+
+```
+
+
+```{r doe-exact-cd, echo=FALSE, results="asis"}
+if (length(params$doe_exact_tables)) {
+  cat("\n\n## Original unrounded CD values\n\n")
+  doe_print_report_tables(params$doe_exact_tables, params$doe_font)
+}
+```
+
+
+```{r doe-scale-note, echo=FALSE, results="asis"}
+cat("\n\n", params$doe_scale_note, "\n\n")
+```

@@ -1,0 +1,401 @@
+---
+title: "Repeated Measures ANOVA (One way)"
+output:
+  html_document:
+    mathjax: "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
+    df_print: kable
+  word_document:
+    reference_docx: "styles.docx"
+  pdf_document: default
+params:
+  doe_table_style: "classic"
+  doe_font: "cambria"
+  doe_scale_note: ""
+  doe_exact_tables: NULL
+  anova_table: NA
+  table: NA
+  rcbd_mcp: "default"
+  mauchly: NA
+  mauchly_html: NA
+  mauchly_violated: FALSE
+  correction: "None"
+
+header-includes:
+- \usepackage{booktabs}
+- \usepackage{longtable}
+- \usepackage{array}
+- \usepackage{multirow}
+- \usepackage{wrapfig}
+- \usepackage{float}
+- \usepackage{colortbl}
+- \usepackage{pdflscape}
+- \usepackage{tabu}
+- \usepackage{threeparttable}
+- \usepackage{threeparttablex}
+- \usepackage[normalem]{ulem}
+- \usepackage{makecell}
+- \usepackage{xcolor}
+- \usepackage{wallpaper}
+- \usepackage{atbegshi}
+- \AtBeginDocument{\ULCornerWallPaper{0.99}{banner1.jpg}}
+- \AtBeginShipoutFirst{\ULCornerWallPaper{0.99}{banner1.jpg}}
+- \AtBeginShipout{\ClearWallPaper}
+---
+
+```{r setup, include=FALSE}
+if (exists("doe_tstyle_knitr_hook", mode = "function")) doe_tstyle_knitr_hook(params$doe_table_style)
+knitr::opts_chunk$set(echo = FALSE)
+library(knitr)
+library(kableExtra)
+library(htmltools)
+library(dplyr)
+library(flextable)
+```
+
+```{r doe-presentation-css, echo=FALSE, results='asis'}
+if (knitr::is_html_output() && exists("doe_tstyle_css", mode = "function")) {
+  cat("<style>", doe_tstyle_css(params$doe_table_style), "body, table {font-family:'", params$doe_font, "';}</style>", sep = "")
+}
+```
+
+\newcommand\Perc{\%}
+```{r, echo=FALSE, results='asis'}
+
+# One-way repeated measures: a single within-subject factor (Day). The report
+# renders the ANOVA summary and one detailed results table for the Day factor.
+if (!is.null(params$anova_table)) {
+   df1 <- data.frame(params$table)
+  anova_table <- data.frame(params$anova_table)
+
+  # Render for HTML
+  if (knitr::is_html_output()) {
+
+    #ANOVA TABLE
+     crdp_html_ANOVA<-anova_table %>%
+        kableExtra::kbl(caption = "ANOVA summary table",
+                        align = "c", escape = FALSE) %>%
+        kableExtra::kable_styling(
+          bootstrap_options = "bordered",
+          full_width = FALSE,
+          latex_options = "booktabs"
+        ) %>%
+        kableExtra::kable_classic(full_width = F)%>%
+      kableExtra::footnote(number = c("SoV= Source of Variation",
+                                        "DF = Degrees of Freedom",
+                                        "Mean squares is provided for each character",
+                                        "* indicates significance at 5% level",
+                                        "** indicates significance at 1% level",
+                                        "NS indicates non-significant")
+        )
+    cat(crdp_html_ANOVA)
+
+    # Mauchly's Test of Sphericity. In the report the verdict is shown as
+    # coloured words (Assumed / Violated), not the tick / cross icons.
+    if (is.data.frame(params$mauchly) && nrow(params$mauchly) > 0) {
+      mauchly_df <- data.frame(params$mauchly, check.names = FALSE)
+      mauchly_df[] <- lapply(mauchly_df, function(x) {
+        x <- gsub("Violated", "<span style='color:#c62828;font-weight:bold;'>Violated</span>", x)
+        x <- gsub("Assumed",  "<span style='color:#2e7d32;font-weight:bold;'>Assumed</span>", x)
+        x
+      })
+      crdp_html_mauchly <- mauchly_df %>%
+        kableExtra::kbl(caption = "Table 2: Mauchly's Test of Sphericity (within-subject effect)",
+                        align = "c", escape = FALSE) %>%
+        kableExtra::kable_styling(bootstrap_options = "bordered", full_width = FALSE,
+                                  latex_options = "booktabs") %>%
+        kableExtra::kable_classic(full_width = F) %>%
+        kableExtra::footnote(number = c(
+          "Mauchly's W tests the sphericity assumption for the repeated (within-subject) factor.",
+          "'Violated' means p is below the significance level; 'Assumed' means it is not.",
+          "When sphericity is violated, the within-subject F-test is adjusted using the selected correction (Greenhouse-Geisser / Huynh-Feldt).",
+          "Sphericity is automatic (no test) when the repeated factor has only two levels."))
+      cat(crdp_html_mauchly)
+      if (isTRUE(params$mauchly_violated)) {
+        cat(paste0("<div style='margin-top:10px; padding:10px 14px; background-color:#fff3cd; border-left:5px solid #e0a800; border-radius:5px; font-size:13px; color:#5c4500;'>",
+                   "<b>Sphericity correction needed.</b> One or more characters violate the sphericity assumption. ",
+                   "A correction (Greenhouse-Geisser or Huynh-Feldt) should be applied to the within-subject F-test. ",
+                   "Correction selected for this analysis: <b>", params$correction, "</b>.</div>"))
+      } else {
+        cat(paste0("<div style='margin-top:10px; padding:10px 14px; background-color:#d4edda; border-left:5px solid #28a745; border-radius:5px; font-size:13px; color:#155724;'>",
+                   "<b>Sphericity holds.</b> All characters meet the sphericity assumption, so no correction is required. ",
+                   "Correction selected: <b>", params$correction, "</b>.</div>"))
+      }
+    }
+
+    # Main table (Day - the single within-subject factor)
+    df1[] <- lapply(df1, function(x) {
+  gsub("&plusmn;", " $\\pm$ ", x, fixed = TRUE)
+})
+
+    crdp_html_table1<-df1 %>%
+        kableExtra::kbl(caption = "Detailed tabular representation with letter grouping and other important statistics of Day", align = "c", escape = FALSE) %>%
+        kableExtra::kable_styling(
+          bootstrap_options = "bordered",
+          full_width = FALSE,
+          latex_options = "booktabs"
+        ) %>%
+        kableExtra::kable_classic(full_width = F)%>%
+
+        kableExtra::footnote(number = c("Cell values are mean \u00B1 SD",
+                                        "Parenthesised means follow the selected scale ; ",
+                                        "Days with same letter grouping are not significantly different",
+                                        "* indicates significance at 5% level",
+                                        "** indicates significance at 1% level",
+                                        "NS indicates non-significant",
+                                        "MSE and CV(%) are common for this experiment"
+
+        )
+        )
+    cat(crdp_html_table1)
+
+    }
+###########################################################html close
+
+
+
+####################################################### Render for PDF
+  if (knitr::is_latex_output()) {
+
+  ### ANOVA TABLE
+   # Replace HTML elements with LaTeX equivalents
+    anova_table[] <- lapply(anova_table, function(x) {
+      gsub("<sup>", "$\\\\textsuperscript{", gsub("</sup>", "}$", x))
+    })
+# Replace ± with \pm in LaTeX
+anova_table[] <- lapply(anova_table, function(x) {
+  gsub("<sup>", "$\\\\pm$", x)
+})
+anova_table[] <- lapply(anova_table, function(x) {
+  gsub("%", "\\\\%", x)
+})
+
+colnames(anova_table) <- gsub("%", "\\\\Perc", colnames(anova_table))
+colnames(anova_table) <- gsub("_", ".", colnames(anova_table))
+rownames(anova_table) <- gsub("%", "\\\\Perc", rownames(anova_table))
+rownames(anova_table) <- gsub("_", ".", rownames(anova_table))
+  crdp_pdf_ANOVA<- anova_table %>%
+  kableExtra::kbl(
+    caption = "ANOVA summary table",
+    format = "latex",
+    escape = FALSE,
+    align = "l",
+    booktabs = TRUE,
+    # longtable = TRUE,
+    linesep = "",
+    ) %>%
+  kableExtra::kable_styling(
+      position = "center",
+      latex_options = c("striped", "repeat_header","scale_down", "H"),
+      full_width = F
+    )%>%
+kableExtra::footnote(number = c("SoV= Source of Variation",
+                                        "DF = Degrees of Freedom",
+                                        "Mean squares is provided for each character",
+                                        "* indicates significance at 5% level",
+                                        "** indicates significance at 1% level",
+                                        "NS indicates non-significant")
+        )
+print(crdp_pdf_ANOVA)
+
+# Mauchly's Test of Sphericity
+    if (is.data.frame(params$mauchly) && nrow(params$mauchly) > 0) {
+      mauchly_df <- data.frame(params$mauchly, check.names = FALSE)
+      # "<" is special in LaTeX text mode; wrap so "<0.001" renders correctly.
+      mauchly_df[] <- lapply(mauchly_df, function(x) gsub("<", "$<$", x, fixed = TRUE))
+      # Colour the verdicts to match the app (green = Assumed, red = Violated).
+      mauchly_df[] <- lapply(mauchly_df, function(x) {
+        x <- gsub("Violated", "\\\\textcolor{red}{\\\\textbf{Violated}}", x)
+        x <- gsub("Assumed",  "\\\\textcolor{green}{\\\\textbf{Assumed}}", x)
+        x
+      })
+      colnames(mauchly_df) <- gsub("_", ".", colnames(mauchly_df))
+      rownames(mauchly_df) <- gsub("_", ".", rownames(mauchly_df))
+      crdp_pdf_mauchly <- mauchly_df %>%
+        kableExtra::kbl(caption = "Mauchly's Test of Sphericity (within-subject effect)",
+                        format = "latex", escape = FALSE, align = "l",
+                        booktabs = TRUE, linesep = "") %>%
+        kableExtra::kable_styling(position = "center",
+                                  latex_options = c("striped", "repeat_header", "scale_down", "H"),
+                                  full_width = F) %>%
+        kableExtra::footnote(number = c(
+          "Mauchly's W tests the sphericity assumption for the repeated (within-subject) factor.",
+          "'Violated' means p is below the significance level; 'Assumed' means it is not.",
+          "When sphericity is violated, the within-subject F-test is adjusted using the selected correction.",
+          "Sphericity is automatic (no test) when the repeated factor has only two levels."))
+      print(crdp_pdf_mauchly)
+      if (isTRUE(params$mauchly_violated)) {
+        cat("\n\n\\textbf{Sphericity correction needed.} One or more characters violate the sphericity assumption; a correction (Greenhouse-Geisser or Huynh-Feldt) should be applied to the within-subject F-test. Correction selected for this analysis: ",
+            params$correction, ".\n\n", sep = "")
+      } else {
+        cat("\n\n\\textbf{Sphericity holds.} All characters meet the sphericity assumption, so no correction is required. Correction selected: ",
+            params$correction, ".\n\n", sep = "")
+      }
+    }
+
+# ################################# Day (single within-subject factor)
+df1[] <- lapply(df1, function(x) {
+   gsub("<sup>", "$\\\\textsuperscript{", gsub("</sup>", "}$", x))
+})
+
+df1[] <- lapply(df1, function(x) {
+   gsub("<br>|</br>", " \\\\ ", x)  # Replaces <br> and </br> with LaTeX line breaks
+})
+
+# Replace ± with \pm in LaTeX
+df1[] <- lapply(df1, function(x) {
+   gsub("&plusmn;", "$\\\\pm$", x)
+})
+
+df1[] <- lapply(df1, function(x) {
+   gsub("%", "\\\\%", x)
+})
+
+colnames(df1) <- gsub("%", "\\\\Perc", colnames(df1))
+colnames(df1) <- gsub("_", ".", colnames(df1))
+rownames(df1) <- gsub("%", "\\\\Perc", rownames(df1))
+rownames(df1) <- gsub("_", ".", rownames(df1))
+
+crdp_pdf_table1A <- df1 %>%
+  kableExtra::kbl(
+    caption = "Detailed tabular representation with Multiple comparisons for Day",
+    format = "latex",
+    escape = FALSE,
+    align = "l",
+    booktabs = TRUE,
+    # longtable = TRUE,
+    linesep = ""
+  ) %>%
+  kableExtra::kable_styling(
+    position = "center",
+    latex_options = c("striped", "repeat_header","scale_down", "H"),
+    full_width = F
+  )%>%
+kableExtra::footnote(number = c("Cell values are mean \u00B1 SD",
+                                "Parenthesised means follow the selected scale ; ",
+                                "Letter grouping is given based on SE(d) DF ",
+                                "Days with same letter grouping are not significantly different",
+                                "* indicates significance at 5% level",
+                                "** indicates significance at 1% level",
+                                "NS indicates non-significant",
+                                "MSE and CV(%) are common for this experiment")
+        )
+
+
+print(crdp_pdf_table1A)
+
+}
+########################################################PDF CLOSE
+
+
+##################################word file
+
+  #### function to replace scripts
+replace_superscripts <- function(text) {
+  # Replace non-empty <sup> tags with the corresponding superscript format
+  # replace ,<sup>**</sup> with **
+  text <- gsub("<sup>\\*\\*</sup>", "**", text)
+  text <- gsub("<sup>\\*</sup>", "*", text)
+  # Trim any spaces inside the tag so pandoc renders ^a^ (a real superscript)
+  # instead of printing a literal ^ a ^ (pandoc only superscripts when there
+  # is no space between the carets).
+  text <- gsub("<sup>[[:space:]]*([^<]*[^[:space:]<])[[:space:]]*</sup>", "^\\1^", text)
+  # Remove empty or whitespace-only <sup> tags
+  text <- gsub("<sup>\\s*</sup>", "", text)
+  # remove ^ from **
+
+  text
+}
+
+   # Render for Word
+  if (knitr::pandoc_to("docx")) {
+
+
+    #ANOVA TABLE
+  anova_table[] <- lapply(anova_table, replace_superscripts)
+  crdp_word_ANOVA<-anova_table %>%
+ kable(caption = "Table 1: ANOVA summary table",align='c', row.names = TRUE, escape = FALSE, format = "pandoc")
+ print(crdp_word_ANOVA)
+
+   cat("\n\nSoV = Source of Variation, DF = Degrees of Freedom; Mean squares are provided for each character; * indicates significance at 5% level, ** indicates significance at 1% level, NS indicates non-significance.\n\n")
+
+   ## Mauchly's Test of Sphericity
+ if (is.data.frame(params$mauchly) && nrow(params$mauchly) > 0 && ncol(params$mauchly) > 0) {
+   # Build a flextable so Word shows the coloured Assumed / Violated verdicts like the app.
+   mres <- params$mauchly
+   mdf  <- data.frame(Statistic = rownames(mres), mres, check.names = FALSE,
+                      row.names = NULL, stringsAsFactors = FALSE)
+   ft <- flextable::flextable(mdf)
+   ft <- flextable::set_caption(ft, "Table 2: Mauchly's Test of Sphericity (within-subject effect)")
+   # flextable defaults to Arial and does NOT read styles.docx, so it looked
+   # different from the kable/pandoc tables. Match the report body font
+   # (styles.docx theme font: Times New Roman, 11pt).
+   ft <- flextable::font(ft, fontname = "Times New Roman", part = "all")
+   ft <- flextable::fontsize(ft, size = 11, part = "all")
+   ft <- flextable::bold(ft, part = "header")
+   for (rr in seq_len(nrow(mdf))) {
+     for (cc in seq_len(ncol(mdf))[-1]) {
+       v <- mdf[rr, cc]
+       if (identical(v, "Violated")) {
+         ft <- flextable::color(ft, i = rr, j = cc, color = "#c62828")
+         ft <- flextable::bold(ft, i = rr, j = cc)
+       } else if (identical(v, "Assumed")) {
+         ft <- flextable::color(ft, i = rr, j = cc, color = "#2e7d32")
+         ft <- flextable::bold(ft, i = rr, j = cc)
+       }
+     }
+   }
+   ft <- flextable::border_outer(ft, part = "all")
+   ft <- flextable::border_inner(ft, part = "all")
+   ft <- flextable::align(ft, j = seq(2, ncol(mdf)), align = "center", part = "all")
+   ft <- flextable::autofit(ft)
+   cat(flextable::flextable_to_rmd(ft))
+   if (isTRUE(params$mauchly_violated)) {
+     cat("\n\n**Sphericity correction needed.** One or more characters violate the sphericity assumption; a correction (Greenhouse-Geisser or Huynh-Feldt) should be applied to the within-subject F-test. Correction selected for this analysis: ",
+         params$correction, ".\n\n", sep = "")
+   } else {
+     cat("\n\n**Sphericity holds.** All characters meet the sphericity assumption, so no correction is required. Correction selected: ",
+         params$correction, ".\n\n", sep = "")
+   }
+   cat("\n\nMauchly's W tests the sphericity assumption for the repeated (within-subject) factor; 'Violated' means p is below the significance level; sphericity is automatic (no test) when the repeated factor has only two levels.\n\n")
+ }
+
+    ## Day (single within-subject factor)
+ df1[] <- lapply(df1, replace_superscripts)
+
+crdp_word_table1A <- df1 %>%
+  kable(
+    caption = "Table 2: Detailed tabular representation with Multiple comparisons for Day",
+    align = 'c',
+    row.names = TRUE,
+    escape = FALSE,
+    format = "pandoc"
+  )
+print(crdp_word_table1A)
+cat("\n\nCell values are mean \u00B1 SD, Parenthesised means follow the selected scale ;,
+                                        Letter grouping is given based on SE(d) DF ,
+                                        Days with same letter grouping are not significantly different,
+                                        * indicates significance at 5% level,
+                                        ** indicates significance at 1% level,
+                                        NS indicates non-significant,
+                                        MSE and CV(%) are common for this experiment\n\n")
+
+ }
+
+
+
+}
+
+```
+
+
+```{r doe-exact-cd, echo=FALSE, results="asis"}
+if (length(params$doe_exact_tables)) {
+  cat("\n\n## Original unrounded CD values\n\n")
+  doe_print_report_tables(params$doe_exact_tables, params$doe_font)
+}
+```
+
+
+```{r doe-scale-note, echo=FALSE, results="asis"}
+cat("\n\n", params$doe_scale_note, "\n\n")
+```

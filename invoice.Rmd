@@ -1,0 +1,113 @@
+---
+title: "."
+output: 
+  pdf_document:
+    fontsize: 12pt
+params: 
+  user_table: NA
+  bill_date: NA
+header-includes:
+- \usepackage{wallpaper}
+- \usepackage{booktabs}
+- \usepackage{longtable}
+- \pagenumbering{gobble}
+---
+\ULCornerWallPaper{0.99}{logo.jpg}
+\LRCornerWallPaper{0.99}{footer.jpg}
+```{r setup, message = F,echo=F,warning=F}
+library(lubridate)
+library(readr)
+library(dplyr)
+details <- data.frame(params$user_table)
+billing_name <- details$Full.name
+billing_address <- details$Address 
+contact_no<-details$Phone
+inv_no <- sub("^pay_", "", details$payID)
+bill_date<-as.Date(params$bill_date)
+plan<-details$Select.Your.Plan
+payment_method<-details$payMethod
+# Initialize variables
+selected_plan <- NULL
+amount <- NULL
+amount_in_wrd <- NULL
+
+# Check the plan and assign values accordingly
+if (grepl("94400", plan)) {
+  selected_plan <- "Subscription Plan Half Year"
+  amount <- 800.00
+  discount <- 0.00
+  gst <- 144.00
+  total<-amount-discount+gst
+  amount_in_wrd <- "\\textbf{Rupees Nine Hundred and Fourty Four only}"
+}
+if (grepl("23600", plan)) {
+  selected_plan <- "Subscription Monthly plan"
+  amount <- 200.00
+  discount <- 0.00
+  gst <- 36.00
+  total<-amount-discount+gst
+  amount_in_wrd <- "\\textbf{Rupees Two hundred and thirty six only}"
+}
+
+```   
+\vspace{10pt}  
+
+\noindent  
+\begin{flushright}
+\begin{minipage}[t]{0.3\textwidth}
+\raggedleft
+\textbf{Date} \\
+`r as.Date(bill_date)`\\
+\textbf{Invoice number:} \\
+SB/RMAOW/`r as.character(inv_no)` 
+\end{minipage}  
+\end{flushright}
+
+\noindent
+\begin{minipage}[t]{0.3\textwidth}
+\textbf{Billing Address:} \\
+`r billing_name` \\
+`r billing_address` \\
+`r as.character(contact_no)`
+\end{minipage}
+
+\vspace{20mm}
+
+```{r table, message = FALSE, echo = FALSE, warning = FALSE, results='asis'}
+library(knitr)
+library(dplyr)
+library(kableExtra)
+
+# Assuming params$user_table is a data frame passed from R Markdown parameters
+details <- data.frame(params$user_table)
+plan <- details$Select.Your.Plan
+
+# Create a data frame for the table
+invoice_data <- data.frame(
+  Description = c("RM One Way ANOVA module (RAISINS)", "", "", "", "", "", "", "Amount in Words"),
+  Plan = c(selected_plan, "", "", "Discount", "GST(18%)", "Total", "", amount_in_wrd),
+  Amount = c(paste0("Rs. ", amount,"/- "), "", "", paste0("Rs. ", discount,"/- "), paste0("Rs. ", gst,"/- "), paste0("\\textbf{Rs. ", total, "/- }"),  "",""),
+  stringsAsFactors = FALSE
+)
+
+# To handle the percentage symbol in LaTeX, replace it with \% in the Plan and Amount fields
+invoice_data$Plan <- gsub("%", "\\\\%", invoice_data$Plan)
+
+# Print the table with LaTeX formatting
+table_latex <- kable(invoice_data, format = "latex", escape = FALSE,booktabs = T) %>%
+  row_spec(0,bold=TRUE) %>%
+  kable_styling("bordered",latex_options = "hold_position", full_width = FALSE)
+
+table_latex
+```
+\vspace{10mm}
+\noindent
+\begin{minipage}[t]{0.3\textwidth}
+\textbf{Payment Method:} \\
+`r as.character(payment_method)` \\
+\textbf{Payment Date:} \\
+`r as.Date(bill_date)`
+\end{minipage}    
+
+
+

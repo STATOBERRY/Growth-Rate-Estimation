@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transformation Algorithms Used in RAISINS Repeated Measures ANOVA (One Way)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+        }
+        h1, h2 {
+            color: #2c3e50;
+        }
+        h1 {
+            font-size: 24px;
+        }
+        h2 {
+            font-size: 20px;
+            margin-top: 20px;
+        }
+        p {
+            margin: 10px 0;
+        }
+        code {
+            background-color: #f4f4f4;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+        .example {
+            background-color: #f9f9f9;
+            padding: 10px;
+            border-left: 3px solid #2c3e50;
+            margin: 10px 0;
+        }
+        ul {
+            margin: 10px 0 10px 20px;
+        }
+        table {
+            border-collapse: collapse;
+            width: auto;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            white-space: nowrap;
+        }
+        th {
+            background-color: #2c3e50;
+            color: white;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Transformation Algorithms Used in RAISINS Repeated Measures ANOVA (One Way)</h1>
+
+<p>To aid researchers in analyzing their data, RAISINS Repeated Measures ANOVA (One Way) provides three types of transformations: Log Transformation, Square-root Transformation, and Arcsin Transformation. Each transformation has unique criteria to ensure appropriate application. Below is a detailed breakdown of how each transformation operates:</p>
+
+<h2>1. Log Transformation</h2> 
+<p> The log transformation is used to reduce skewness and stabilize variance in quantitative variables. 
+The transformation is applied <strong>column-wise</strong> based on the presence of zero or negative 
+values, as described below: </p> 
+<ul> <li> <strong>Columns Containing Zero or Negative Values (≤ 0):</strong><br> If any value in the 
+selected column is less than or equal to zero, a data-dependent shift is applied before transformation. 
+The minimum value (<code>min_val</code>) of the column is first identified, and all observations are 
+shifted to ensure positivity: <pre>log10(x − min_val + 1)</pre> 
+This guarantees that the smallest transformed value becomes 1, making the log 
+transformation mathematically valid. </li> <li> <strong>Columns with All 
+Positive Values (&gt; 0):</strong><br> If all values in the column are already positive, the base-10 
+logarithm is applied directly without any adjustment: <pre>log10(x)</pre> </li> </ul> 
+<p> This adaptive approach ensures numerical stability while preserving the relative structure of the 
+original data. </p>
+
+<h2>2. Square-root Transformation</h2>
+<p>This transformation is typically used to reduce positive skewness in the data. The logic behind this transformation is as follows:</p>
+<ul>
+    <li>
+        <strong>All Positive Values:</strong> If all values in the selected column are positive, the square root transformation is applied directly:
+        <pre>sqrt(x)</pre>
+    </li>
+    <li>
+        <strong>Any Zeros:</strong> If any values in the column are zero, 0.5 is added to all values before taking the square root to prevent undefined results:
+        <pre>sqrt(x + 0.5)</pre>
+    </li>
+    <li>
+        <strong>Any Negative Values:</strong> If the column contains negative values, no transformation is applied, and a warning is displayed to notify the user.
+    </li>
+</ul>
+
+<h2>3. Arcsin Transformation</h2>
+<p>The Arcsin transformation is specifically used for proportion data (values between 0 and 1). This transformation is applied as follows:</p>
+<ul>
+    <li>
+        <strong>All Values Between 0 and 1:</strong> If all values in the selected column are between 0 and 1, the arcsin square root transformation is applied:
+        <pre>asin(sqrt(x))</pre>
+    </li>
+    <li>
+        <strong>Handling 0 and 1 Values:</strong> If any values are exactly 0 or 1, they are adjusted as follows before applying the arcsin transformation:
+        <ul>
+            <li>Values of 0 are replaced with <code>1 / (4 * n)</code>, where <code>n</code> is the total number of observations.</li>
+            <li>Values of 1 are replaced with <code>1 - 1 / (4 * n)</code>.</li>
+        </ul>
+        <pre>asin(sqrt(x))</pre>
+    </li>
+    <li>
+        <strong>Values Outside [0, 1] Range:</strong> If the data contains values outside the [0, 1] range, no transformation is applied, and a warning is displayed. In such cases, it is recommended to convert the data to proportions before applying the transformation.
+    </li>
+</ul>
+
+<p>These transformations provide a robust approach to making data suitable for analysis. For optimal results, consult a statistician to determine the most appropriate transformation based on your data.</p>
+
+</body>
+</html>
+

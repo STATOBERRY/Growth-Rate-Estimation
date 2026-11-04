@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generalized Eta Squared in ANOVA</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            color: #333;
+        }
+        h2 {
+            color: #555;
+        }
+        p {
+            color: #666;
+        }
+        .formula {
+            background-color: #eef;
+            padding: 10px;
+            border-radius: 5px;
+            display: inline-block;
+            font-size: 1.2em;
+        }
+        ul {
+            margin: 10px 0;
+        }
+        table {
+            border-collapse: collapse;
+            width: 50%;
+            background-color: #fff;
+            border: 1px solid #ccc;
+        }
+        th, td {
+            padding: 8px;
+            border: 1px solid #ccc;
+            text-align: left;
+        }
+        th {
+            background-color: #ddd;
+        }
+    </style>
+</head>
+<body>
+    <h1>Generalized Eta Squared in ANOVA</h1>
+    <p>
+        Generalized Eta Squared is an effect size measure used in analysis of variance (ANOVA), particularly suitable for <b>repeated measures</b> and <b>mixed designs</b>.
+    </p>
+
+    <h2>Calculation of Generalized Eta Squared</h2>
+    <p>
+        Generalized Eta Squared is calculated by dividing the sum of squares for the effect of interest by the total variance, including variability due to subjects (for repeated measures). The formula is:
+    </p>
+    <div class="formula">
+        η²<sub>G</sub> = SS<sub>effect</sub> / (SS<sub>effect</sub> + SS<sub>error</sub> + SS<sub>subjects</sub>)
+    </div>
+
+    <p>
+        Where:
+    </p>
+    <ul>
+        <li><b>SS<sub>effect</sub></b> = Sum of squares for the factor (e.g., Treatment)</li>
+        <li><b>SS<sub>error</sub></b> = Sum of squares for error/residual</li>
+        <li><b>SS<sub>subjects</sub></b> = Sum of squares for subjects (within-subject variability)</li>
+    </ul>
+
+    <h2>Importance of Generalized Eta Squared</h2>
+    <p>
+        Generalized Eta Squared is valuable for several reasons:
+    </p>
+    <ul>
+        <li><b>Unbiased in Repeated Measures:</b> It properly accounts for within-subject variability, unlike traditional Eta Squared.</li>
+        <li><b>Comparability:</b> Results are comparable across studies, even with different designs (e.g., repeated vs. between-subjects).</li>
+        <li><b>Effect Size Clarity:</b> It quantifies how much variance is explained, making interpretation of ANOVA more meaningful.</li>
+        <li><b>Use in Software:</b> It is supported in R using packages like <code>afex</code> and <code>effectsize</code>.</li>
+    </ul>
+
+    <h2>Interpretation Benchmarks</h2>
+    <p>As a guideline, Cohen's suggested benchmarks for interpreting η²<sub>G</sub> are:</p>
+    <table>
+        <tr>
+            <th>Effect Size</th>
+            <th>η²<sub>G</sub> Value</th>
+        </tr>
+        <tr>
+            <td>Small</td>
+            <td>≈ 0.01</td>
+        </tr>
+        <tr>
+            <td>Medium</td>
+            <td>≈ 0.06</td>
+        </tr>
+        <tr>
+            <td>Large</td>
+            <td>≈ 0.14</td>
+        </tr>
+    </table>
+</body>
+</html>

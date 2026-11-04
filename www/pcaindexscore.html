@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Construction of Index Scores Based on PCA</title>
+    <script type="text/javascript" async
+        src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            padding: 0;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        h2 {
+            color: #34495e;
+        }
+        p {
+            text-align: justify;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Construction of Index Scores Based on PCA</h1>
+
+<h2>1. Standardization of Variables</h2>
+<p>In RAISINS, the uploaded variables are standardized to ensure that each variable has a mean of zero and a standard deviation of one. If X be the original data matrix of size \(n \times p\), where:</p>
+<p>n: number of observations (e.g., treatments)</p>
+<p>p: number of variables (e.g., traits under study)</p>
+<p>To ensure all variables contribute equally, standardize the matrix X by subtracting the mean and dividing by the standard deviation for each variable:</p>
+<div>
+    \[
+    Z_{ij} = \frac{X_{ij} - \mu_j}{\sigma_j}, i=1,2,...,n; j=1,2,...,p
+    \]
+</div>
+<p>where:</p>
+<ul>
+    <li>\(X_{ij}\): The value of the \(j^{th}\) variable for the \(i^{th}\) treatment / observation (original value).</li>
+    <li>\(\mu_j\): The mean of the \(j^{th}\) variable.</li>
+    <li>\(\sigma_j\): The standard deviation of the \(j^{th}\) variable.</li>
+</ul>
+<p>This produces the standardized data matrix Z (size \(n \times p\)).</p>
+<h2>2. PCA Computation</h2>
+<p>PCA is based on the Singular Value Decomposition (SVD) of the standardized data matrix \(Z\). The matrix \(Z\) is standardized such that each column (representing variables) has zero mean and unit variance. Let \(Z\) be of size \(n \times p\), where \(n\) is the number of observations (treatments) and \(p\) is the number of variables (characters under study).</p>
+<p>The decomposition is:</p>
+<div>
+    \[
+    Z = U \times S \times V^T
+    \]
+</div>
+<p>where:</p>
+<ul>
+    <li>\(U\): An \(n \times p\) orthogonal matrix containing the principal component scores.</li>
+    <li>\(S\): Diagonal matrix of singular values (\(n \times p\)).</li>
+    <li>\(V^T\): A \(p \times p\) orthogonal matrix containing the principal component loadings.</li>
+</ul>
+
+<h2>3. Relationship Between Scores and Loadings</h2>
+<p>The scores for each principal component are calculated as:</p>
+<div>
+    \[
+    U_k = Z v_k
+    \]
+</div>
+<p>where:</p>
+<ul>
+    <li>\(v_k\): The eigenvector corresponding to the \(k^{th}\) principal component (column \(k\) of \(V\)).</li>
+    <li>\(U_k\): The \(k^{th}\) column of \(U\), containing the scores for the \(k^{th}\) principal component.</li>
+</ul>
+<p>For \(PC_1\), we extract \(v_1\) and compute:</p>
+<div>
+    \[
+    u_{i1} = \sum_{j=1}^p z_{ij} \cdot v_{j1}
+    \]
+</div>
+<p>where:</p>
+<ul>
+    <li>\(z_{ij}\): Standardized value of the \(j^{th}\) variable for the \(i^{th}\) treatment.</li>
+    <li>\(v_{j1}\): Loading (eigenvector coefficient) of the \(j^{th}\) variable for \(PC_1\).</li>
+</ul>
+
+<h2>4. Interpretation of \(u_{i1}\)</h2>
+<p>The value \(u_{i1}\) represents the weighted combination of standardized variables (\(z_{ij}\)) for the \(i^{th}\) treatment. The weights are the corresponding loadings (\(v_{j1}\)).</p>
+<p>Treatments with higher \(u_{i1}\) scores contribute more to the variance explained by \(PC_1\), while those with lower scores contribute less.</p>
+
+<h2>5. Index Score Construction</h2>
+<p>The raw index scores are derived from the principal component scores:</p>
+<ul>
+    <li><strong>Index 1 (PC<sub>1</sub>):</strong></li>
+    <div>
+        \[
+        I_{1i} = u_{i1}
+        \]
+    </div>
+    <li><strong>Index 2 (PC<sub>2</sub>):</strong></li>
+    <div>
+        \[
+        I_{2i} = u_{i2}
+        \]
+    </div>
+</ul>
+<p>To normalize the indices, min-max scaling is applied:</p>
+<ul>
+    <li><strong>For Index 1:</strong></li>
+    <div>
+        \[
+        I_{1i} {\text{(scaled)}} = \frac{I_{1i} - \min(I_1)}{\max(I_1) - \min(I_1)}
+        \]
+    </div>
+    <li><strong>For Index 2:</strong></li>
+    <div>
+        \[
+        I_{2i} {\text{(scaled)}} = \frac{I_{2i} - \min(I_2)}{\max(I_2) - \min(I_2)}
+        \]
+    </div>
+</ul>
+
+</body>
+</html>

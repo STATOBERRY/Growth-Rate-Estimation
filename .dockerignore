@@ -1,0 +1,8 @@
+.Rhistory
+.RData
+.Rproj.user
+.git
+.gitignore
+*.log
+*.key
+*.env

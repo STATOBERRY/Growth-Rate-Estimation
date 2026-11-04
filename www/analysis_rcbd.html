@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>How to Perform Repeated Measures ANOVA in RAISINS</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<style>
+
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f6f9;
+  margin: 0;
+  padding: 20px;          /* reduced from 40px */
+  color: #2c3e50;
+  font-size: 14px;        /* NEW: smaller base font */
+  line-height: 1.6;       /* cleaner spacing */
+}
+
+.container {
+  max-width: 1000px;
+  margin: auto;
+  background: white;
+  padding: 25px;          /* reduced */
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.06); /* softer */
+}
+
+h1 {
+  text-align: center;
+  color: #8e44ad;
+  margin-bottom: 30px;    /* reduced */
+  font-size: 22px;        /* smaller */
+}
+
+.step {
+  margin-bottom: 35px;    /* reduced */
+}
+
+.step-title {
+  font-size: 18px;        /* smaller */
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: #2E8B57;
+}
+
+.step-number {
+  background: #8e44ad;
+  color: white;
+  width: 30px;            /* smaller circle */
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: bold;
+  font-size: 13px;        /* smaller text inside */
+  margin-right: 8px;
+}
+
+.step-description {
+  font-size: 14px;        /* smaller */
+  line-height: 1.6;
+  margin-bottom: 15px;
+}
+
+.step img {
+  width: 100%;
+  border-radius: 10px;
+  box-shadow: 0 6px 15px rgba(0,0,0,0.08);
+}
+
+.final-message {
+  margin-top: 25px;
+  padding: 18px;
+  background: #e8f5e9;
+  border-left: 5px solid #2E8B57;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1b5e20;
+  text-align: center;
+}
+
+.footer-text {
+  margin-top: 15px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.footer-text a {
+  color: #8e44ad;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.footer-text a:hover {
+  text-decoration: underline;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1><i class="fas fa-chart-line"></i> Perform Repeated Measures ANOVA in RAISINS</h1>
+
+<!-- STEP 1 -->
+<div class="step">
+  <div class="step-title">
+    <span class="step-number">1</span>
+    Upload Your Excel or CSV File
+  </div>
+  <div class="step-description">
+    Upload your dataset in <strong>.xls</strong>, <strong>.xlsx</strong>, or <strong>.csv</strong> format.
+    CSV format is recommended for faster processing.
+  </div>
+  <img src="https://firebasestorage.googleapis.com/v0/b/raisins-2025.firebasestorage.app/o/RAISINS_CRD%2Fupload.webp?alt=media" alt="Upload File" style="width: 600px; height: auto;">
+</div>
+
+<!-- STEP 2 -->
+<div class="step">
+  <div class="step-title">
+    <span class="step-number">2</span>
+    Verify Uploaded Columns
+  </div>
+
+  <div class="step-description">
+    Once the dataset is uploaded, RAISINS automatically detects the 
+    number of <strong>rows</strong> and <strong>columns</strong> in your file.  
+    Review the detected column names carefully.  
+    If everything looks correct, click 
+    <strong>"Got it, let's go!"</strong> to proceed to the analysis setup.
+  </div>
+
+  <img src="https://firebasestorage.googleapis.com/v0/b/raisins-2025.firebasestorage.app/o/ORMANOVA%2Fgot%2033333.webp?alt=media" alt="Verify Columns" style="width: 600px; height: auto;">
+</div>
+
+
+<!-- STEP 3 -->
+<div class="step">
+  <div class="step-title">
+    <span class="step-number">3</span>
+    Select Treatment, time, and Study Variable Columns
+  </div>
+  <div class="step-description">
+    Choose the appropriate  <strong>Treatment </strong> column, <strong>time/day </strong> column, and the 
+    <strong>character(s) under study</strong>.
+  </div>
+  <img src="https://firebasestorage.googleapis.com/v0/b/raisins-2025.firebasestorage.app/o/ORMANOVA%2Fselect222.webp?alt=media" alt="Column Selection" style="width: 600px; height: auto;">
+</div>
+
+<!-- STEP 4 -->
+<div class="step">
+  <div class="step-title">
+    <span class="step-number">4</span>
+    Select Transformation (If Needed)
+  </div>
+  <div class="step-description">
+    If your data violates assumptions, you may select appropriate
+    transformation options before running the analysis.
+  </div>
+  <img src="https://firebasestorage.googleapis.com/v0/b/raisins-2025.firebasestorage.app/o/ORMANOVA%2Ftrans222.webp?alt=media" alt="Transformation" style="width: 600px; height: auto;">
+</div>
+
+<!-- STEP 5 -->
+<div class="step">
+  <div class="step-title">
+    <span class="step-number">5</span>
+    Click Run Analysis
+  </div>
+  <div class="step-description">
+    Click the <strong>Run Analysis</strong> button to generate statistical results.
+  </div>
+  <img src="https://firebasestorage.googleapis.com/v0/b/raisins-2025.firebasestorage.app/o/ORMANOVA%2Frun4444.webp?alt=media" alt="Run Analysis" style="width: 600px; height: auto;">
+</div>
+
+<div class="final-message">
+  Go through all the tabs to access complete tables, plots, and AI-based interpretation.
+</div>
+
+
+<div class="footer-text">
+  Explore powerful statistical analysis with 
+  <a href="https://raisins.live" target="_blank">raisins.live</a>
+</div>
+
+</div>
+
+</body>
+</html>

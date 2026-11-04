@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>File Health Check Instructions</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    .instructions {
+      border: 1px solid #ddd;
+      padding: 15px;
+      border-radius: 5px;
+    }
+    .highlight-yellow {
+      background-color: yellow;
+      padding: 5px;
+      border-radius: 3px;
+    }
+    .highlight-green {
+      background-color: lightgreen;
+      padding: 5px;
+      border-radius: 3px;
+    }
+    .highlight-red {
+      background-color: red;
+      color: white;
+      padding: 5px;
+      border-radius: 3px;
+    }
+    .tick {
+      color: green;
+      font-size: 18px;
+      font-weight: bold;
+    }
+    .cross {
+      color: red;
+      font-size: 18px;
+      font-weight: bold;
+    }
+    .bold-blue {
+      font-weight: bold;
+      color: blue;
+    }
+  </style>
+</head>
+<body>
+  <div class="instructions">
+    <h3>Uploaded file Health Check Instructions</h3>
+    <p><strong>Inspect datatable shown below for the following:</strong></p>
+    <ol>
+      <li>
+        <strong>Check the datatable below:</strong>
+        <ul>
+          <li>The treatment columns should be highlighted in <span class="highlight-yellow">yellow</span> or <span class="highlight-green">green</span>. <span class="tick">✔</span></li>
+          <li>All numerical values should appear in <span class="highlight-green">green</span>. <span class="tick">✔</span></li>
+        <li><span class="bold-blue">If both above conditions are met, your file is in good health.</span>. <span class="tick">✔</span></li>
+        </ul>
+      </li>
+      <li>
+        <strong>Identify and Correct Errors:</strong>
+        <ul>
+          <li>If any columns, other than the treatment name column, appear in <span class="highlight-yellow">yellow</span>, there may be issues with numerical inputs in that column, such as:</li>
+          <ul>
+            <li>Spaces between numbers</li>
+            <li>Incorrect decimal points</li>
+          </ul>
+          <li>Carefully review these yellow-highlighted columns for any input errors and correct them. <span class="cross">✘</span></li>
+        </ul>
+      </li>
+      <li>
+        <strong>Address Missing Values:</strong>
+        <ul>
+          <li>Cells highlighted in <span class="highlight-red">red</span> indicate missing values. <span class="cross">✘</span></li>
+          <li>No missing values are permitted in the data.</li>
+          <li>Either delete the rows or columns with missing values from your Excel file.</li>
+          <li>Some rows or columns may appear red even if they seem empty. This usually happens if there are residual NA values after deletion. To fix this, select the affected rows or columns in your Excel file, right-click, and choose "Clear Contents," or delete them entirely.</li>
+        </ul>
+      </li>
+    </ol>
+  </div>
+</body>
+</html>

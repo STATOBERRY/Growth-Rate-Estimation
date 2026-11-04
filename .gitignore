@@ -1,0 +1,23 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+# secrets — never commit
+service_account.json
+.Renviron
+*.pem
+*.key
+
+# deploy + renv artifacts (regenerable)
+renv/
+rsconnect/
+manifest.json
+renv.lock
+renvcodes.R
+
+# dev scratch / backups
+codes testing/
+FORGOT PASSWORD/
+.cdnote_backup/
+Rplots.pdf
