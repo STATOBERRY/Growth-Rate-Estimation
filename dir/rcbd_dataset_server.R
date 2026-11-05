@@ -33,7 +33,7 @@ rcbd_dataset_server = function(input, output, session, error_support=NULL) {
       '<div style="font-family: Arial, sans-serif; background-color: #ffffff; padding: 20px; margin: 0 auto; max-width: 800px;">
     <h3 style="color: #333;">Dataset 2: District Panel</h3>
     <p>A panel with a <strong>Year</strong> column, a <strong>District</strong> grouping column (North, Central, South) and numeric <strong>Area</strong> and <strong>Production</strong> columns, one row per district per year.</p>
-    <p>When you choose the District column as the optional group filter in the Analysis tab, the app aggregates production and area across districts by year before estimating growth. You can download this dataset as CSV using the link below:</p>
+    <p>When you select this demo in Analysis, District is selected as the grouping column. The app sums production and area across districts for each year before estimating growth. You can download this dataset as CSV using the link below:</p>
     </div>'
     )
   })

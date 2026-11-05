@@ -37,9 +37,9 @@
 
     <h2>Trend Fitting</h2>
     <p>
-        Linear, quadratic, cubic and exponential trends are fitted to each series and ranked by
-        <b>adjusted R&sup2;</b>; the best one is ticked and drawn on the trend plot. AIC is shown as a
-        second opinion. Prefer the simpler model when two have almost the same adjusted R&sup2;.
+        Eligible linear, quadratic, cubic and exponential trends are compared using AICc on the original
+        response scale. The model with the lowest AICc is marked and plotted. Short series may have
+        too few observations to rank some or all models.
     </p>
 
     <h2>Mann-Kendall test and Sen's slope</h2>
@@ -51,7 +51,7 @@
     </p>
     <p>
         <b>Sen's slope</b> is the median of all pairwise slopes, a robust estimate of the change
-        <b>per year</b> in the series' own units, with a confidence interval at the chosen &alpha;.
+        <b>per year</b> in the series' own units, with a confidence interval at the chosen &alpha;. The test and interval assume independent observations. Serial dependence and short records can make inference unreliable.
     </p>
 
     <h2>Instability: CV and Cuddy-Della Valle Index</h2>
@@ -63,11 +63,7 @@
     <div class="formula">
         CDVI = CV &times; &radic;(1 &minus; adjusted R&sup2; of the linear trend)
     </div>
-    <ul>
-        <li>CDVI below 15%: low instability</li>
-        <li>15% to 30%: moderate instability</li>
-        <li>above 30%: high instability</li>
-    </ul>
+    <p>Negative adjusted R&sup2; is treated as zero. CV and CDVI require nonnegative observations and a positive mean.</p>
 
     <h2>Area-Yield decomposition</h2>
     <p>

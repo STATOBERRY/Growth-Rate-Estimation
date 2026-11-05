@@ -93,7 +93,8 @@ ul.nav-pills{
   display: flex !important;
   justify-content: center !important;
 }
-#subtabs { flex-wrap: wrap; }
+#subtabs, #gre_plot_tabs { flex-wrap: wrap; }
+#gre_plot_tabs > li > a { border-radius: 999px; }
 .gre-analysis-options { display:flex; flex-wrap:wrap; }
 .gre-analysis-options > .col-sm-3 { flex:1 1 160px; min-width:0; }
 #gre_mainpanel { min-width:0; }
@@ -260,24 +261,29 @@ $(document).on('hidden.bs.select', '#gre_series', function () {
         mainPanel(
           id = "gre_mainpanel",
           uiOutput("gre_support_panel"),
+          uiOutput("gre_table_css"),
           uiOutput("gre_checks_ui"),
           uiOutput("gre_run_hint"),
+          wellPanel(
+            tags$h4("Analysis and table options"),
+            fluidRow(class = "gre-analysis-options",
+              column(width = 3,
+                     selectInput("gre_alpha", "Level of significance (α):",
+                                 choices = c("0.05", "0.01", "0.10"), selected = "0.05")),
+              column(width = 3,
+                     selectInput("gre_font", "Select Font:",
+                                 choices = raisins_font_choices, selected = "cambria")),
+              column(width = 3,
+                     selectInput("gre_table_style", "Table Style:",
+                                 choices = raisins_tstyle_choices, selected = raisins_tstyle_value(NULL))),
+              column(width = 3,
+                     selectInput("gre_digits", "Decimal digits:",
+                                 choices = 0:6, selected = 3))
+            ),
+            style = "background-color: #eef2da; border: 1px solid #ddd; border-radius: 3px; padding: 15px;"
+          ),
           conditionalPanel(
             condition = "output.submitClicked == true",
-            wellPanel(
-              fluidRow(class = "gre-analysis-options",
-                column(width = 3,
-                       selectInput("gre_alpha", "Level of significance (α):",
-                                   choices = c("0.05", "0.01", "0.10"), selected = "0.05")),
-                column(width = 3,
-                       selectInput("gre_font", "Select Font:",
-                                   choices = raisins_font_choices, selected = "cambria")),
-                column(width = 3,
-                       selectInput("gre_table_style", "Table Style:",
-                                   choices = raisins_tstyle_choices, selected = "classic"))
-              ),
-              style = "background-color: #eef2da; border: 1px solid #ddd; border-radius: 3px; padding: 15px;"
-            ),
             # RBD's wait note, shown until the results have been calculated.
             conditionalPanel(
               condition = "!output.gre_results_ready",
@@ -301,49 +307,87 @@ $(document).on('hidden.bs.select', '#gre_series', function () {
               )
             ),
             tags$br(),
-            gre_calculator_loader(DT::DTOutput("gre_growth_table")),
-            tags$br(),
-            uiOutput("gre_growth_note")
+            gre_calculator_loader(uiOutput("gre_growth_table"))
           )
         )
       ),
 
-      tabPanel("Trend Fitting", value = "Trend",
-        icon = icon("chart-line"),
-        conditionalPanel(
-          condition = "output.submitClicked == true",
-          tags$br(),
-          gre_calculator_loader(DT::DTOutput("gre_trend_table")),
-          tags$br(),
-          gre_trend_workspace_ui()
+      tabPanel("Trend", value = "Trend", icon = icon("chart-line"),
+        conditionalPanel("output.submitClicked == true",
+          div(class = "gre-styled-results",
+            tags$h3("Trend model comparison"),
+            gre_calculator_loader(uiOutput("gre_trend_table")),
+            tags$hr(),
+            tags$h3("Mann-Kendall test and Sen's slope"),
+            uiOutput("gre_mk_intro"),
+            gre_calculator_loader(uiOutput("gre_mk_table"))
+          )
         )
       ),
 
-      tabPanel("Trend Test", value = "MannKendall",
-        icon = icon("arrow-trend-up"),
-        conditionalPanel(
-          condition = "output.submitClicked == true",
-          tags$br(), uiOutput("gre_mk_intro"),
-          gre_calculator_loader(DT::DTOutput("gre_mk_table"))
+      tabPanel("Instability & Decomposition", value = "Instability", icon = icon("wave-square"),
+        conditionalPanel("output.submitClicked == true",
+          div(class = "gre-styled-results",
+            tags$h3("Instability"),
+            gre_calculator_loader(uiOutput("gre_instab_table")),
+            tags$hr(),
+            tags$h3("Area-yield decomposition"),
+            gre_calculator_loader(uiOutput("gre_decomp_table"))
+          )
         )
       ),
 
-      tabPanel("Instability", value = "Instability",
-        icon = icon("wave-square"),
-        conditionalPanel(
-          condition = "output.submitClicked == true",
-          tags$br(), uiOutput("gre_instab_intro"),
-          gre_calculator_loader(DT::DTOutput("gre_instab_table"))
+      tabPanel("Group Comparison", value = "Groups", icon = icon("chart-bar"),
+        conditionalPanel("output.submitClicked == true",
+          div(class = "gre-styled-results",
+            h3("Group and combined growth"),
+            p("Combined yield uses total production divided by total area, in the supplied production and area units. Estimates are descriptive comparisons across groups."),
+            uiOutput("gre_group_comparison_table")
+          )
         )
       ),
-
-      tabPanel("Decomposition", value = "Decomposition",
-        icon = icon("chart-pie"),
-        conditionalPanel(
-          condition = "output.submitClicked == true",
-          tags$br(), uiOutput("gre_decomp_intro"),
-          gre_calculator_loader(DT::DTOutput("gre_decomp_table")),
-          tags$br(), uiOutput("gre_decomp_note")
+      tabPanel("Plots & Graphs", value = "Plots", icon = icon("chart-line"),
+        conditionalPanel("output.submitClicked == true",
+          tabsetPanel(id = "gre_plot_tabs", type = "pills",
+            tabPanel("Publication Figures", gre_publication_ui()),
+            tabPanel("Explore Data",
+              gre_interactive_workspace_ui("Explore Annual Series",
+                plotly::plotlyOutput("gre_explore_plot", height = "500px"),
+                selector = tagList(
+                  selectInput("gre_explore_kind", "Chart",
+                    c("Indexed trajectories" = "indexed", "Annual change heatmap" = "heatmap",
+                      "Paired-series scatter" = "scatter")),
+                  uiOutput("gre_explore_options")
+                ))),
+            tabPanel("Fitted Trend",
+              gre_trend_workspace_ui(),
+              gre_interactive_workspace_ui("Interactive Fitted Trend",
+                plotly::plotlyOutput("gre_trend_interactive", height = "460px"))),
+            tabPanel("Growth Diagnostics",
+              gre_interactive_workspace_ui("Growth Diagnostics",
+                tagList(
+                  tags$p("The Growth rates table gives the confidence interval, observation count and one-year residual correlation. Correlation is descriptive and uses adjacent calendar years only."),
+                  fluidRow(
+                    column(6, plotly::plotlyOutput("gre_residual_plot", height = "360px")),
+                    column(6, plotly::plotlyOutput("gre_lag_plot", height = "360px"))
+                  )),
+                selector = uiOutput("gre_diagnostic_series"))),
+            tabPanel("Group Plots",
+              gre_interactive_workspace_ui("Group Plots",
+                fluidRow(
+                  column(6, plotly::plotlyOutput("gre_group_forest", height = "420px")),
+                  column(6, plotly::plotlyOutput("gre_group_paths", height = "420px"))
+                ),
+                selector = uiOutput("gre_group_plot_series"))),
+            tabPanel("Decomposition",
+              gre_interactive_workspace_ui("Area-Yield Decomposition",
+                plotly::plotlyOutput("gre_decomp_plot", height = "420px")))
+          )
+        )
+      ),
+      tabPanel("Data Quality", value = "DataQuality", icon = icon("clipboard-check"),
+        conditionalPanel("output.submitClicked == true",
+          div(class = "gre-styled-results", h3("Coverage and exclusions"), uiOutput("gre_quality_table"))
         )
       ),
 
@@ -445,6 +489,23 @@ $(document).on('hidden.bs.select', '#gre_series', function () {
           '.stat-report-export .shiny-input-container{margin-bottom:0;} .stat-report-export .btn{padding:11px 22px;font-weight:600;} ',
           '@media(max-width:850px){.stat-report-grid{grid-template-columns:1fr}.stat-report-export{justify-content:center}} ',
           '@media(max-width:520px){.stat-report-tables .shiny-options-group{grid-template-columns:1fr}.stat-report-panel{padding:16px}}'))),
+        conditionalPanel("output.submitClicked == true",
+          div(class = "stat-report-grid",
+            tags$fieldset(class = "stat-report-panel",
+              tags$legend("Report header"),
+              radioButtons("gre_header_mode", "Branding", c("Statoberry" = "default",
+                           "No header" = "none", "Custom header" = "custom"), inline = TRUE),
+              conditionalPanel("input.gre_header_mode == 'custom'",
+                textInput("gre_header_text", "Organisation or report header"),
+                fileInput("gre_header_logo", "Logo (optional, PNG or JPEG, up to 5 MB)",
+                          accept = c("image/png", "image/jpeg", ".png", ".jpg", ".jpeg")))),
+            tags$fieldset(class = "stat-report-panel",
+              tags$legend("Data provenance"),
+              textInput("gre_report_source", "Data source or publication"),
+              textInput("gre_report_units", "Units by series"),
+              textAreaInput("gre_report_changes", "Known boundary or reporting definition changes", rows = 2))
+          )
+        ),
         uiOutput("gre_report_body")
       )
     )

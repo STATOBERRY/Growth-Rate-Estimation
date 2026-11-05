@@ -41,7 +41,7 @@
 
     <h2>Compound Growth Rate (CGR)</h2>
     <p>
-        CGR fits a log-linear (exponential) trend through <b>all the years</b>:
+        CGR fits a log-linear (exponential) trend through <b>all observed years</b>:
     </p>
     <div class="formula">
         ln(<i>y</i>) = <i>a</i> + <i>b</i>·<i>t</i> &nbsp;&nbsp;&rArr;&nbsp;&nbsp; CGR = (e<sup><i>b</i></sup> &minus; 1) &times; 100
@@ -50,7 +50,7 @@
         <li><i>t</i> is the number of years since the first year.</li>
         <li><b>CGR p</b> is the p-value of <i>b</i>. Below the chosen level of significance (&alpha;), the
             growth is statistically significant.</li>
-        <li>Because every year contributes, CGR is the standard choice for agricultural growth studies.</li>
+        <li>The slope test assumes independent, homoscedastic normal errors on the log scale.</li>
     </ul>
 
     <h2>Compound Annual Growth Rate (CAGR)</h2>
@@ -67,14 +67,12 @@
 
     <h2>Annual average growth</h2>
     <p>
-        The simple mean of the year-on-year percentage changes. It is easy to explain but is pulled
-        up or down by single extreme years.
+        The mean percentage change over adjacent calendar-year pairs with a positive starting value and a nonnegative ending value. Missing years are not bridged.
     </p>
 
     <h2>Why is a rate blank?</h2>
     <ul>
-        <li>CGR and CAGR take logarithms or ratios, so they need <b>strictly positive</b> values.
-            Zero, negative and missing values are skipped.</li>
+        <li>CGR requires strictly positive values throughout the observed series. CAGR requires positive observed endpoints.</li>
         <li>CGR needs at least <b>3</b> usable years and CAGR at least <b>2</b>. With fewer, the
             rate is left blank.</li>
         <li>If many values are skipped, check the column for zeros typed instead of blanks or for text

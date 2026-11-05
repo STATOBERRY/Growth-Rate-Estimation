@@ -6,67 +6,87 @@
 
 ## ---- statistical helpers (base R) ------------------------------------------
 
-# Compound growth rate from a log-linear fit:  ln(y) = a + b*t
-gre_cgr <- function(year, y) {
-  ok <- is.finite(y) & y > 0 & is.finite(year)
-  year <- year[ok]; y <- y[ok]
-  if (length(y) < 3) return(list(rate = NA, p = NA, r2 = NA))
+# Growth rates use the observed series in chronological order.
+gre_cgr <- function(year, y, alpha = 0.05) {
+  keep <- is.finite(y)
+  year <- year[keep]; y <- y[keep]
+  result <- list(rate = NA_real_, p = NA_real_, ci = rep(NA_real_, 2), residuals = NULL,
+                 lag1 = NA_real_, pairs = 0L)
+  if (length(y) < 3 || any(y <= 0)) return(result)
   t <- year - min(year)
   fit <- stats::lm(log(y) ~ t)
-  b   <- stats::coef(fit)[["t"]]
-  p   <- tryCatch(summary(fit)$coefficients["t", "Pr(>|t|)"], error = function(e) NA)
-  list(rate = (exp(b) - 1) * 100,
-       p    = p,
-       r2   = summary(fit)$r.squared)
+  errors <- stats::residuals(fit)
+  result$rate <- 100 * expm1(stats::coef(fit)[["t"]])
+  result$residuals <- data.frame(Year = year, Residual = unname(errors))
+  if (sqrt(mean(errors^2)) <= sqrt(.Machine$double.eps) * stats::sd(log(y))) return(result)
+  result$p <- summary(fit)$coefficients["t", "Pr(>|t|)"]
+  result$ci <- 100 * expm1(stats::confint(fit, "t", level = 1 - alpha))
+  adjacent <- diff(year) == 1
+  result$pairs <- sum(adjacent)
+  previous <- head(errors, -1)[adjacent]
+  current <- tail(errors, -1)[adjacent]
+  if (result$pairs >= 3 && stats::sd(previous) > 0 && stats::sd(current) > 0)
+    result$lag1 <- stats::cor(previous, current)
+  result
 }
 
-# Endpoint CAGR using first and last available values
 gre_cagr <- function(year, y) {
-  ok <- is.finite(y) & y > 0 & is.finite(year)
-  year <- year[ok]; y <- y[ok]
-  if (length(y) < 2) return(NA)
+  keep <- is.finite(y)
+  year <- year[keep]; y <- y[keep]
   n <- length(y)
-  ((y[n] / y[1])^(1 / (year[n] - year[1])) - 1) * 100
+  if (n < 2 || y[1] <= 0 || y[n] <= 0) return(NA_real_)
+  100 * expm1((log(y[n]) - log(y[1])) / (year[n] - year[1]))
 }
 
-# Average of year-on-year percentage changes
-gre_annual_growth <- function(y) {
-  y <- y[is.finite(y)]
-  if (length(y) < 2) return(NA)
-  mean(diff(y) / head(y, -1) * 100, na.rm = TRUE)
+gre_annual_growth <- function(year, y) {
+  if (length(y) < 2) return(NA_real_)
+  previous <- head(y, -1)
+  current <- tail(y, -1)
+  use <- diff(year) == 1 & is.finite(previous) & is.finite(current) &
+    previous > 0 & current >= 0
+  if (!any(use)) return(NA_real_)
+  100 * mean((current[use] - previous[use]) / previous[use])
 }
 
-# Fit linear / quadratic / cubic / exponential trends; rank by adjusted R^2
+# Compare Gaussian and lognormal likelihoods on the observed response scale.
 gre_trend_fit <- function(year, y) {
-  ok <- is.finite(y) & is.finite(year)
-  year <- year[ok]; y <- y[ok]
+  keep <- is.finite(y)
+  year <- year[keep]; y <- y[keep]
+  n <- length(y)
+  if (n < 3 || all(y == y[1])) return(NULL)
   t <- year - min(year)
-  out <- list()
-  safe <- function(expr) tryCatch(expr, error = function(e) NULL)
   models <- list(
-    Linear    = safe(stats::lm(y ~ t)),
-    Quadratic = safe(stats::lm(y ~ t + I(t^2))),
-    Cubic     = safe(stats::lm(y ~ t + I(t^2) + I(t^3))),
-    Exponential = if (all(y > 0)) safe(stats::lm(log(y) ~ t)) else NULL
+    Linear = stats::lm(y ~ t),
+    Quadratic = if (n > 3) stats::lm(y ~ t + I(t^2)),
+    Cubic = if (n > 4) stats::lm(y ~ t + I(t^2) + I(t^3)),
+    Exponential = if (all(y > 0)) stats::lm(log(y) ~ t)
   )
-  rows <- lapply(names(models), function(nm) {
-    m <- models[[nm]]
-    if (is.null(m)) return(NULL)
-    s <- summary(m)
-    data.frame(Model = nm,
-               `Adj R2` = round(s$adj.r.squared, 4),
-               AIC = round(stats::AIC(m), 2),
-               check.names = FALSE)
+  models <- Filter(Negate(is.null), models)
+  rows <- lapply(names(models), function(name) {
+    model <- models[[name]]
+    ll <- stats::logLik(model)
+    k <- attr(ll, "df")
+    aicc <- NA_real_
+    response <- stats::model.response(stats::model.frame(model))
+    residual_scale <- sqrt(mean(stats::residuals(model)^2))
+    if (n > k + 1 && is.finite(ll) && residual_scale > sqrt(.Machine$double.eps) * stats::sd(response)) {
+      aic <- -2 * as.numeric(ll) + 2 * k
+      if (name == "Exponential") aic <- aic + 2 * sum(log(y))
+      aicc <- aic + 2 * k * (k + 1) / (n - k - 1)
+    }
+    data.frame(Model = name, AICc = aicc)
   })
-  tab <- do.call(rbind, rows[!vapply(rows, is.null, logical(1))])
-  if (is.null(tab) || !nrow(tab)) return(NULL)
-  best_name <- tab$Model[which.max(tab$`Adj R2`)]
-  best <- models[[best_name]]
-  # fitted values on original scale
-  tt <- data.frame(t = t)
-  fitted <- if (best_name == "Exponential") exp(stats::predict(best, tt)) else stats::predict(best, tt)
-  list(table = tab, best = best_name,
-       fitted = data.frame(year = year, y = y, fit = as.numeric(fitted)))
+  tab <- do.call(rbind, rows)
+  eligible <- which(is.finite(tab$AICc))
+  best_name <- if (length(eligible)) tab$Model[eligible[which.min(tab$AICc[eligible])]] else NA_character_
+  fitted <- NULL
+  if (!is.na(best_name)) {
+    model <- models[[best_name]]
+    prediction <- stats::fitted(model)
+    if (best_name == "Exponential") prediction <- exp(prediction + mean(stats::residuals(model)^2) / 2)
+    fitted <- data.frame(year = year, y = y, fit = as.numeric(prediction))
+  }
+  list(table = tab, best = best_name, fitted = fitted)
 }
 
 # Mann-Kendall trend test (with tie correction)
@@ -79,8 +99,12 @@ gre_mann_kendall <- function(y) {
   ties <- as.numeric(table(y))
   varS <- (n * (n - 1) * (2 * n + 5) - sum(ties * (ties - 1) * (2 * ties + 5))) / 18
   Z <- if (S > 0) (S - 1) / sqrt(varS) else if (S < 0) (S + 1) / sqrt(varS) else 0
-  p <- 2 * (1 - stats::pnorm(abs(Z)))
-  tau <- S / (0.5 * n * (n - 1))
+  p <- if (n < 10L && all(ties == 1L))
+    stats::cor.test(seq_len(n), y, method = "kendall", exact = TRUE)$p.value else
+    2 * stats::pnorm(-abs(Z))
+  pairs <- choose(n, 2)
+  untied <- pairs - sum(choose(ties, 2))
+  tau <- if (untied > 0) S / sqrt(pairs * untied) else NA_real_
   list(S = S, Z = Z, p = p, tau = tau, varS = varS, n = n)
 }
 
@@ -90,15 +114,16 @@ gre_sens_slope <- function(year, y, alpha = 0.05) {
   year <- year[ok]; y <- y[ok]
   n <- length(y)
   if (n < 3) return(NULL)
-  slopes <- c()
-  for (i in 1:(n - 1)) for (j in (i + 1):n)
-    slopes <- c(slopes, (y[j] - y[i]) / (year[j] - year[i]))
+  slopes <- unlist(lapply(seq_len(n - 1L), function(i) {
+    j <- seq.int(i + 1L, n)
+    (y[j] - y[i]) / (year[j] - year[i])
+  }), use.names = FALSE)
   slopes <- sort(slopes)
   mk <- gre_mann_kendall(y)
   Calpha <- stats::qnorm(1 - alpha / 2) * sqrt(mk$varS)
   N <- length(slopes)
-  M1 <- floor((N - Calpha) / 2)
-  M2 <- ceiling((N + Calpha) / 2)
+  M1 <- ceiling((N - Calpha) / 2)
+  M2 <- floor((N + Calpha) / 2) + 1L
   lo <- if (M1 >= 1 && M1 <= N) slopes[M1] else NA
   hi <- if (M2 >= 1 && M2 <= N) slopes[M2] else NA
   list(slope = stats::median(slopes), lower = lo, upper = hi)
@@ -108,8 +133,9 @@ gre_sens_slope <- function(year, y, alpha = 0.05) {
 gre_instability <- function(year, y) {
   ok <- is.finite(y) & is.finite(year)
   year <- year[ok]; y <- y[ok]
-  if (length(y) < 3) return(list(cv = NA, cdvi = NA))
+  if (length(y) < 3 || any(y < 0) || mean(y) <= 0) return(list(cv = NA_real_, cdvi = NA_real_))
   cv <- stats::sd(y) / mean(y) * 100
+  if (cv == 0) return(list(cv = 0, cdvi = 0))
   t  <- year - min(year)
   r2adj <- tryCatch(summary(stats::lm(y ~ t))$adj.r.squared, error = function(e) NA)
   r2adj <- max(min(r2adj, 1), 0)
@@ -279,7 +305,6 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
     df
   })
 
-  num_cols <- function(df) names(df)[vapply(df, is.numeric, logical(1))]
   # Series candidates: numeric columns, plus text columns that are mostly numbers
   # (so the data checks can flag numbers saved as text instead of hiding them).
   series_cols <- function(df) names(df)[vapply(df, function(x) {
@@ -298,7 +323,7 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
         "gre_year",
         label = HTML("Year column: <br><small style='font-size: 10px; color: gray;'>(Select the year / time column in your file)</small>"),
         choices = names(df),
-        selected = character(0),
+        selected = if (is.null(input$rcbd_file1) && identical(input$demo_data_select, "dataset2.csv")) "Year" else character(0),
         options = pickerOptions(container = "body", title = "Select year column",
                                 liveSearch = TRUE, size = 6),
         width = "100%"
@@ -308,12 +333,15 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
   })
   output$gre_series_ui <- renderUI({
     df <- gre_raw(); if (is.null(df)) return(NULL)
-    nc <- setdiff(series_cols(df), input$gre_year %||% "")
+    nc <- setdiff(series_cols(df), c(input$gre_year, input$gre_group))
+    selected <- intersect(isolate(input$gre_series), nc)
+    if (!length(selected) && is.null(input$rcbd_file1) && identical(input$demo_data_select, "dataset2.csv"))
+      selected <- intersect(c("Area", "Production"), nc)
     tags$div(
       pickerInput(
         "gre_series",
         label = HTML("Series columns: <br><small style='font-size: 10px; color: gray;'>(You can select all the numeric series for analysis at once.)</small>"),
-        choices = nc, selected = intersect(isolate(input$gre_series), nc),
+        choices = nc, selected = selected,
         multiple = TRUE,
         options = pickerOptions(container = "body", actionsBox = TRUE,
                                 title = "Select series columns", size = 6),
@@ -324,14 +352,15 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
   })
   output$gre_group_ui <- renderUI({
     df <- gre_raw(); if (is.null(df)) return(NULL)
-    cat_cols <- setdiff(names(df), c(input$gre_year %||% "", series_cols(df)))
+    group_cols <- setdiff(names(df), input$gre_year %||% "")
+    district_demo <- is.null(input$rcbd_file1) && identical(input$demo_data_select, "dataset2.csv")
     prev <- isolate(input$gre_group) %||% ""
     tags$div(
       pickerInput(
         "gre_group",
-        label = HTML("Group column (optional): <br><small style='font-size: 10px; color: gray;'>(Region / district column; series are summed by year)</small>"),
-        choices = c("No grouping" = "", cat_cols),
-        selected = if (prev %in% cat_cols) prev else character(0),
+        label = HTML("Group column (optional): <br><small style='font-size: 10px; color: gray;'>(Group identifier column; select only additive series such as area and production)</small>"),
+        choices = c("No grouping" = "", group_cols),
+        selected = if (district_demo) "District" else if (prev %in% group_cols) prev else "",
         options = pickerOptions(container = "body", title = "No grouping (optional)", size = 6),
         width = "100%"
       ),
@@ -402,7 +431,7 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
   gre_checks <- reactive({
     df <- gre_raw()
     gre_data_checks(df, input$gre_year, input$gre_series %||% character(0),
-                    grouped = nzchar(input$gre_group %||% ""))
+                    group_col = input$gre_group %||% "")
   })
   gre_run_ok <- reactive(!is.null(gre_raw()) && nzchar(input$gre_year %||% "") &&
                            !isTRUE(gre_checks()$blocked) && length(gre_checks()$valid) >= 1)
@@ -438,19 +467,10 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
   output$submitClicked <- reactive(gre_submitted())
   outputOptions(output, "submitClicked", suspendWhenHidden = FALSE)
 
-  ## -- apply optional group filter -------------------------------------------
   data_filt <- reactive({
-    df <- gre_raw(); req(df)
-    g <- input$gre_group %||% ""
-    if (nzchar(g) && g %in% names(df)) {
-      # when a group col is chosen but no single level, aggregate by year sum
-      yc <- input$gre_year
-      valid <- gre_checks()$valid
-      agg <- stats::aggregate(df[, valid, drop = FALSE],
-                              by = list(df[[yc]]), FUN = sum, na.rm = TRUE)
-      names(agg)[1] <- yc
-      agg
-    } else df
+    df <- gre_raw()
+    req(df)
+    gre_prepare_data(df, input$gre_year, gre_checks()$valid, input$gre_group %||% "")
   })
 
   ## -- core computation on Run -----------------------------------------------
@@ -468,30 +488,22 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
     alpha <- as.numeric(input$gre_alpha %||% "0.05")
 
     growth <- trend <- mk <- instab <- NULL
-    trend_fits <- list()
+    trend_fits <- residuals <- list()
 
     for (s in series) {
       y <- suppressWarnings(as.numeric(df[[s]]))
 
-      if ("growth" %in% mods) {
-        cg <- gre_cgr(year, y)
-        growth <- rbind(growth, data.frame(
-          Series = s,
-          `Start year` = min(year[is.finite(y)]),
-          `End year`   = max(year[is.finite(y)]),
-          `Mean`       = round(mean(y, na.rm = TRUE), 2),
-          `CGR (%/yr)`  = round(cg$rate, 2),
-          `CGR p`       = signif(cg$p, 3),
-          `CAGR (%/yr)` = round(gre_cagr(year, y), 2),
-          `Annual avg (%/yr)` = round(gre_annual_growth(y), 2),
-          check.names = FALSE))
+      if ("growth" %in% mods && any(is.finite(y))) {
+        cg <- gre_cgr(year, y, alpha)
+        growth <- rbind(growth, gre_growth_row(s, year, y, cg))
+        if (!is.null(cg$residuals)) residuals[[s]] <- cg$residuals
       }
       if ("trend" %in% mods) {
         tf <- gre_trend_fit(year, y)
         if (!is.null(tf)) {
-          trend_fits[[s]] <- tf
+          if (!is.null(tf$fitted)) trend_fits[[s]] <- tf
           trend <- rbind(trend, cbind(Series = s, tf$table,
-                                      Best = ifelse(tf$table$Model == tf$best, "✔", "")))
+                                      Best = ifelse(tf$table$Model %in% tf$best, "Yes", "")))
         }
       }
       if ("mk" %in% mods) {
@@ -500,26 +512,24 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
         if (!is.null(m))
           mk <- rbind(mk, data.frame(
             Series = s,
-            `Kendall tau` = round(m$tau, 3),
+            `Kendall tau` = m$tau,
             `S` = m$S,
-            `Z` = round(m$Z, 3),
-            `p-value` = signif(m$p, 3),
+            `Z` = m$Z,
+            `p-value` = m$p,
             `Trend` = ifelse(m$p < alpha,
-                             ifelse(m$tau > 0, "Increasing", "Decreasing"),
+                             ifelse(m$S > 0, "Increasing", "Decreasing"),
                              "No significant trend"),
-            `Sen slope/yr` = if (!is.null(ss)) round(ss$slope, 3) else NA,
-            `Sen CI low`  = if (!is.null(ss)) round(ss$lower, 3) else NA,
-            `Sen CI high` = if (!is.null(ss)) round(ss$upper, 3) else NA,
+            `Sen slope/yr` = if (!is.null(ss)) ss$slope else NA,
+            `Sen CI low`  = if (!is.null(ss)) ss$lower else NA,
+            `Sen CI high` = if (!is.null(ss)) ss$upper else NA,
             check.names = FALSE))
       }
       if ("instab" %in% mods) {
         ii <- gre_instability(year, y)
         instab <- rbind(instab, data.frame(
           Series = s,
-          `CV (%)`   = round(ii$cv, 2),
-          `CDVI (%)` = round(ii$cdvi, 2),
-          `Stability` = cut(ii$cdvi, c(-Inf, 15, 30, Inf),
-                            labels = c("Low instability", "Moderate", "High instability")),
+          `CV (%)`   = ii$cv,
+          `CDVI (%)` = ii$cdvi,
           check.names = FALSE))
       }
     }
@@ -527,26 +537,9 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
     ## area-yield decomposition (auto-detect Area / Production [/ Yield])
     decomp <- NULL; decomp_msg <- NULL
     if ("decomp" %in% mods) {
-      find <- function(pat) { h <- grep(pat, names(df), ignore.case = TRUE, value = TRUE); if (length(h)) h[1] else NA }
-      Acol <- find("area"); Pcol <- find("prod")
-      if (is.na(Acol) || is.na(Pcol)) {
-        decomp_msg <- "Decomposition needs columns named like 'Area' and 'Production'. Rename your columns and re-run."
-      } else {
-        o  <- order(year)
-        A  <- as.numeric(df[[Acol]])[o]; P <- as.numeric(df[[Pcol]])[o]
-        # Derive yield as Production/Area so the identity P = A*Y holds exactly
-        # (any supplied Yield column may be in different units and would break the
-        # additive decomposition). The effects then sum to the total change.
-        Y  <- P / A
-        A0 <- A[1]; A1 <- A[length(A)]; Y0 <- Y[1]; Y1 <- Y[length(Y)]
-        dP <- P[length(P)] - P[1]
-        area_e <- Y0 * (A1 - A0); yield_e <- A0 * (Y1 - Y0); inter_e <- (A1 - A0) * (Y1 - Y0)
-        decomp <- data.frame(
-          Effect = c("Area effect", "Yield effect", "Interaction effect", "Total change"),
-          `Contribution` = round(c(area_e, yield_e, inter_e, dP), 2),
-          `Share (%)` = round(c(area_e, yield_e, inter_e, dP) / dP * 100, 1),
-          check.names = FALSE)
-      }
+      decomposition <- gre_decomposition(df, yc)
+      decomp <- decomposition$table
+      decomp_msg <- decomposition$message
     }
 
     # Plain-language write-up (gre_interpretation_text below), shown on the
@@ -555,15 +548,39 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
                                            trend = trend, trend_fits = trend_fits, mk = mk,
                                            instab = instab, decomp = decomp, alpha = alpha))
 
+    group <- input$gre_group %||% ""
+    panel <- NULL
+    if ("growth" %in% mods && nzchar(group) && group %in% names(gre_raw())) {
+      panel <- gre_panel_growth(gre_raw(), df, yc, group, series, alpha)
+    }
+    quality <- gre_quality_summary(gre_raw(), df, yc, group,
+      input$gre_series %||% character(), gre_checks())
     list(raw = df, year_col = yc, growth = growth, trend = trend,
-         trend_fits = trend_fits, mk = mk, instab = instab,
-         decomp = decomp, decomp_msg = decomp_msg, interp = interp, alpha = alpha)
+         trend_fits = trend_fits, mk = mk, instab = instab, residuals = residuals,
+         group_comparison = panel$table, group_data = panel$data, quality = quality,
+         decomp = decomp, decomp_msg = decomp_msg, interp = interp, alpha = alpha, series = series)
   })
 
   ## -- output renderers ------------------------------------------------------
-  dt <- function(d) DT::datatable(d, rownames = FALSE,
-                                  options = list(dom = "t", ordering = FALSE,
-                                                 scrollX = TRUE, pageLength = 50))
+  output$gre_table_css <- renderUI({
+    css <- raisins_tstyle_css(input$gre_table_style, scope = c("#gre_mainpanel", ".gre-styled-results"))
+    if (nzchar(css)) tags$style(HTML(css))
+  })
+  result_table <- function(d, key) {
+    req(!is.null(d))
+    cells <- gre_table_cells(d, input$gre_digits %||% 3L)
+    table <- knitr::kable(cells, format = "html", row.names = FALSE, escape = TRUE,
+                          align = ifelse(vapply(d, is.numeric, logical(1)), "r", "l"))
+    font <- raisins_font_value(input$gre_font %||% "cambria")
+    table <- kableExtra::kable_styling(table, bootstrap_options = "bordered",
+                                       full_width = FALSE, position = "center")
+    table <- kableExtra::kable_classic(table, full_width = FALSE, html_font = font)
+    htmltools::attachDependencies(
+      tagList(div(style = "overflow-x: auto;", HTML(as.character(table))),
+              tags$p(class = "text-muted", tags$small(tags$strong("Note. "), gre_table_note(key, res()$alpha)))),
+      kableExtra::html_dependency_lightable()
+    )
+  }
 
   output$gre_run_hint <- renderUI({
     if (!gre_submitted() && !is.null(gre_raw()))
@@ -574,17 +591,17 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
     isTRUE(gre_run_ready()) && !is.null(tryCatch(res(), error = function(e) NULL))
   })
   outputOptions(output, "gre_results_ready", suspendWhenHidden = FALSE)
-  output$gre_growth_table <- DT::renderDT({ req(res()$growth); dt(res()$growth) })
+  output$gre_growth_table <- renderUI({ req(res()$growth); result_table(res()$growth, "growth") })
   # Calculate with the run (not after the browser reports the panel visible),
   # so the calculator loader shows on this table while results are worked out.
   # Higher priority so it starts first: its "recalculating" signal (which opens
   # the GIF) then reaches the browser before the calculation, not after it.
   outputOptions(output, "gre_growth_table", suspendWhenHidden = FALSE, priority = 10)
-  output$gre_growth_note  <- renderUI({
-    req(res())
-    HTML("<small>CGR from the log-linear model ln(y)=a+b·t; CAGR from first and last values. Rates need positive values.</small>")
+  output$gre_trend_table <- renderUI({
+    r <- res()
+    if (is.null(r$trend)) return(tags$p("Run Trend fitting on a nonconstant series to compare models."))
+    result_table(r$trend, "trend")
   })
-  output$gre_trend_table <- DT::renderDT({ req(res()$trend); dt(res()$trend) })
   ## Trend-plot workspace (dir/gre_plot_workspace.R): one customised plot is
   ## shown on screen, downloaded, and embedded in the Statistical Report.
   gre_trend_labels <- gre_labels_server("gre_ws_trend_edit",
@@ -610,22 +627,180 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
       print(p)
     })
 
-  output$gre_mk_intro <- renderUI(HTML(
-    "<p>The <b>Mann-Kendall</b> test checks for a monotonic trend without assuming a shape; <b>Sen's slope</b> gives a robust magnitude of change per year.</p>"))
-  output$gre_mk_table <- DT::renderDT({ req(res()$mk); dt(res()$mk) })
-
-  output$gre_instab_intro <- renderUI(HTML(
-    "<p><b>CV</b> is raw variability; the <b>Cuddy-Della Valle Index (CDVI)</b> removes the trend component, so it reflects genuine year-to-year instability.</p>"))
-  output$gre_instab_table <- DT::renderDT({ req(res()$instab); dt(res()$instab) })
-
-  output$gre_decomp_intro <- renderUI(HTML(
-    "<p>Splits the total change in <b>Production</b> into an <b>area effect</b>, a <b>yield effect</b> and their <b>interaction</b> (needs columns named like 'Area' and 'Production').</p>"))
-  output$gre_decomp_table <- DT::renderDT({
-    r <- res(); req(r)
-    shiny::validate(need(!is.null(r$decomp), r$decomp_msg %||% "Enable decomposition and provide Area/Production columns."))
-    dt(r$decomp)
+  output$gre_trend_interactive <- plotly::renderPlotly({
+    shiny::validate(need(length(res()$trend_fits), "Run Trend fitting on an eligible series to see this plot."))
+    plotly::ggplotly(gre_trend_plot_obj())
   })
-  output$gre_decomp_note <- renderUI({ r <- res(); if (!is.null(r$decomp_msg)) div(style = "color:#8B0000;", r$decomp_msg) })
+  output$gre_diagnostic_series <- renderUI({
+    choices <- names(res()$residuals)
+    if (!length(choices)) return(tags$p("Run Growth rates on a positive series to see diagnostics."))
+    selectInput("gre_diag_series", "Series", choices, selected = isolate(input$gre_diag_series))
+  })
+  diagnostic_data <- reactive({
+    series <- res()$residuals
+    req(length(series))
+    selected <- input$gre_diag_series %||% names(series)[1]
+    if (selected %in% names(series)) series[[selected]] else series[[1]]
+  })
+  output$gre_residual_plot <- plotly::renderPlotly({
+    d <- diagnostic_data()
+    plotly::ggplotly(gre_chart(d, ggplot2::aes(Year, Residual),
+                              "Residuals over time", "Year", "Log-scale residual") +
+      ggplot2::geom_hline(yintercept = 0, colour = "#83949b", linetype = 2) +
+      ggplot2::geom_line(colour = "#16655f") +
+      ggplot2::geom_point(colour = "#16655f", size = 2.8))
+  })
+  output$gre_lag_plot <- plotly::renderPlotly({
+    d <- diagnostic_data()
+    adjacent <- diff(d$Year) == 1
+    lagged <- data.frame(Previous = head(d$Residual, -1)[adjacent],
+                         Current = tail(d$Residual, -1)[adjacent])
+    shiny::validate(need(nrow(lagged) >= 3, "At least three adjacent-year pairs are needed."))
+    plotly::ggplotly(gre_chart(lagged, ggplot2::aes(Previous, Current),
+                              "One-year residual lag", "Previous year", "Current year") +
+      ggplot2::geom_hline(yintercept = 0, colour = "#a9b6bc", linetype = 2) +
+      ggplot2::geom_vline(xintercept = 0, colour = "#a9b6bc", linetype = 2) +
+      ggplot2::geom_point(colour = "#d47434", size = 3))
+  })
+  output$gre_group_comparison_table <- renderUI({
+    r <- res()
+    if (is.null(r$group_comparison)) return(tags$p("Choose a grouping column and run Growth rates."))
+    result_table(r$group_comparison, "group")
+  })
+  output$gre_group_plot_series <- renderUI({
+    d <- res()$group_comparison
+    if (is.null(d)) return(tags$p("Choose a grouping column and run Growth rates to see group plots."))
+    selectInput("gre_group_plot_variable", "Series", unique(d$Series),
+                selected = isolate(input$gre_group_plot_variable))
+  })
+  group_plot_series <- reactive({
+    r <- res()
+    req(r$group_comparison)
+    choices <- unique(r$group_comparison$Series)
+    selected <- input$gre_group_plot_variable %||% choices[1]
+    if (selected %in% choices) selected else choices[1]
+  })
+  output$gre_group_forest <- plotly::renderPlotly({
+    d <- res()$group_comparison
+    d <- d[d$Series == group_plot_series() & is.finite(d$`CGR (%/yr)`), , drop = FALSE]
+    shiny::validate(need(nrow(d), "No compound growth rate could be estimated for this series."))
+    d$Group <- factor(d$Group, levels = rev(d$Group))
+    ci <- d[is.finite(d$`CGR CI low`) & is.finite(d$`CGR CI high`), , drop = FALSE]
+    plotly::ggplotly(gre_chart(d, ggplot2::aes(`CGR (%/yr)`, Group, colour = Scope),
+                              "Compound growth by group", "CGR (% per year)", NULL) +
+      ggplot2::geom_vline(xintercept = 0, colour = "#83949b", linetype = 2) +
+      ggplot2::geom_segment(data = ci, ggplot2::aes(x = `CGR CI low`, xend = `CGR CI high`, yend = Group),
+                            linewidth = 1) +
+      ggplot2::geom_point(size = 3.5) +
+      ggplot2::scale_colour_manual(values = c(Combined = "#d47434", Group = "#16655f")))
+  })
+  output$gre_group_paths <- plotly::renderPlotly({
+    d <- res()$group_data
+    d <- d[d$Series == group_plot_series() & d$Scope == "Group", , drop = FALSE]
+    shiny::validate(need(any(is.finite(d$Value)), "No observations are available for this series."))
+    plotly::ggplotly(gre_chart(d, ggplot2::aes(Year, Value, colour = Group),
+                              "Group time series", "Year", group_plot_series()) +
+      ggplot2::geom_line(linewidth = 0.9) + ggplot2::geom_point(size = 2.1) +
+      ggplot2::scale_colour_viridis_d(end = 0.85))
+  })
+  output$gre_quality_table <- renderUI(result_table(res()$quality, "quality"))
+  output$gre_decomp_plot <- plotly::renderPlotly({
+    d <- res()$decomp
+    shiny::validate(need(d, res()$decomp_msg %||% "Run Area-Yield decomposition to see this plot."))
+    plotly::plot_ly(d, x = ~Effect, y = ~Contribution, type = "waterfall",
+      measure = c("relative", "relative", "relative", "total"),
+      increasing = list(marker = list(color = "#16655f")),
+      decreasing = list(marker = list(color = "#c35849")),
+      totals = list(marker = list(color = "#254663"))) |>
+      plotly::layout(title = "From area and yield to total production change",
+                     yaxis = list(title = "Change in production units"), xaxis = list(title = ""))
+  })
+
+  output$gre_explore_options <- renderUI({
+    r <- res()
+    kind <- input$gre_explore_kind %||% "indexed"
+    if (kind == "indexed") {
+      years <- gre_index_years(r)
+      if (!length(years)) return(tags$p("There is no common year with positive values for all selected series."))
+      return(selectInput("gre_explore_base", "Base year (index = 100)", years,
+                         selected = isolate(input$gre_explore_base)))
+    }
+    if (kind == "scatter" && length(r$series) >= 2L) {
+      return(tagList(tags$p("Each point represents a year. Shared time trends can produce apparent associations."),
+                     selectInput("gre_explore_x", "Horizontal series", r$series,
+                                 selected = isolate(input$gre_explore_x) %||% r$series[1]),
+                     selectInput("gre_explore_y", "Vertical series", r$series,
+                                 selected = isolate(input$gre_explore_y) %||% r$series[2])))
+    }
+    if (kind == "heatmap") tags$p("Grey cells mark unavailable changes. Percentage changes use adjacent calendar years only.")
+  })
+  explore_plot <- reactive(gre_explore_plot(res(), input))
+  output$gre_explore_plot <- plotly::renderPlotly(plotly::ggplotly(explore_plot()))
+
+  publication_series <- reactive({
+    r <- res()
+    switch(input$gre_pub_kind %||% "trend",
+      trend = names(r$trend_fits),
+      growth = unique(r$group_comparison$Series),
+      character())
+  })
+  output$gre_pub_series_ui <- renderUI({
+    choices <- publication_series()
+    if (length(choices)) selectInput("gre_pub_series", "Series", choices,
+      selected = isolate(input$gre_pub_series))
+  })
+  publication_plot <- reactive({
+    choices <- publication_series()
+    series <- input$gre_pub_series %||% ""
+    if (length(choices) && !series %in% choices) series <- choices[1]
+    gre_publication_plot(res(), input$gre_pub_kind %||% "trend", series, input)
+  })
+  output$gre_pub_plot <- renderPlot(publication_plot())
+  output$gre_pub_download_ui <- renderUI({
+    req(publication_plot())
+    gre_publication_export_ui(input)
+  })
+  output$gre_pub_download <- downloadHandler(
+    filename = function() paste0("GRE_", input$gre_pub_kind %||% "trend", ".",
+                                 input$gre_pub_format %||% "pdf"),
+    content = function(file) {
+      p <- publication_plot()
+      d <- gre_trend_dimensions(list(
+        gre_trend_width = input$gre_pub_width %||% 7,
+        gre_trend_height = input$gre_pub_height %||% 4.5,
+        gre_trend_dpi = input$gre_pub_dpi %||% 600, gre_trend_format = input$gre_pub_format %||% "pdf"))
+      wrap <- function(text) {
+        if (is.null(text)) return(NULL)
+        width <- max(20L, floor(d$width * 11))
+        lines <- strsplit(text, "\n", fixed = TRUE)[[1]]
+        paste(unlist(lapply(lines, strwrap, width = width)), collapse = "\n")
+      }
+      p <- p + ggplot2::labs(title = wrap(p$labels$title), caption = wrap(p$labels$caption))
+      device <- gre_open_device(file, d$format, d)
+      on.exit(grDevices::dev.off(device), add = TRUE)
+      print(p)
+    }
+  )
+
+  output$gre_mk_intro <- renderUI(HTML(
+    "<p>The <b>Mann-Kendall</b> test checks for a monotonic trend. <b>Sen's slope</b> estimates change per year. Inference assumes independent observations. For fewer than 10 observations without ties the p-value is exact. The approximate p-value and slope interval can be unreliable for short series or many ties.</p>"))
+  output$gre_mk_table <- renderUI({
+    r <- res()
+    if (is.null(r$mk)) return(tags$p("Select Mann-Kendall and Sen's slope, then run the analysis."))
+    result_table(r$mk, "mk")
+  })
+
+  output$gre_instab_table <- renderUI({
+    r <- res()
+    if (is.null(r$instab)) return(tags$p("Run Instability to see CV and CDVI."))
+    result_table(r$instab, "instab")
+  })
+  output$gre_decomp_table <- renderUI({
+    r <- res()
+    if (is.null(r$decomp))
+      return(tags$p(r$decomp_msg %||% "Enable decomposition and provide Area and Production columns."))
+    tagList(result_table(r$decomp, "decomp"), if (!is.null(r$decomp_msg)) tags$p(r$decomp_msg))
+  })
 
   ## -- Interpretation tab (RBD's RAISINS Assistant flow) ---------------------
   gre_interpretation_ready <- reactiveVal(FALSE)
@@ -831,12 +1006,13 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
   ## -- Statistical Report tab (RBD full-report layout; shown only after Run) --
   gre_report_tables <- c(growth = "Growth rates", trend = "Trend fitting",
                          mk = "Mann-Kendall trend test", instab = "Instability",
-                         decomp = "Area-Yield decomposition")
+                         decomp = "Area-Yield decomposition", group_comparison = "Group and combined growth")
   gre_report_notes  <- c(growth = "CGR, CAGR and average annual growth for each series",
-                         trend  = "Linear, quadratic, cubic and exponential fits ranked by adjusted R²",
+                         trend  = "Linear, quadratic, cubic and exponential fits compared by AICc on the original scale",
                          mk     = "Kendall's τ, p-value and Sen's slope with its confidence interval",
                          instab = "Coefficient of variation and Cuddy-Della Valle Index",
-                         decomp = "Area, yield and interaction effects on production change")
+                         decomp = "Area, yield and interaction effects on production change",
+                         group_comparison = "Growth estimates, confidence intervals and derived yield by group and for the combined series")
   gre_report_option <- function(label, description)
     tagList(span(class = "stat-report-option-title", label),
             span(class = "stat-report-option-description", description))
@@ -846,10 +1022,13 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
     r <- res(); req(r)
     avail <- names(gre_report_tables)[vapply(names(gre_report_tables),
                                              function(k) !is.null(r[[k]]), logical(1))]
-    sections <- c(interp = "Interpretation", plot = "Fitted-trend figure")
+    sections <- c(interp = "Interpretation", plot = "Fitted-trend figure",
+                  publication = "Current publication figure", exploration = "Current exploratory chart")
     section_notes <- c(interp = "Plain-language summary of every analysis that was run",
-                       plot   = "Observed values with the best-fit trend for each series")
-    if (!length(r$trend_fits)) sections <- sections["interp"]
+                       plot = "Observed values with the best-fit trend for each series",
+                       publication = "Uses the current selections in Plots & Graphs → Publication Figures",
+                       exploration = "Uses the current selections in Plots & Graphs → Explore Data")
+    if (!length(r$trend_fits)) sections <- sections[names(sections) != "plot"]
     prev_tables   <- isolate(input$gre_report_tables)
     prev_sections <- isolate(input$gre_report_sections)
     tagList(
@@ -871,7 +1050,7 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
           checkboxGroupInput("gre_report_sections", NULL,
             choiceNames  = lapply(names(sections), function(k) gre_report_option(sections[[k]], section_notes[[k]])),
             choiceValues = names(sections),
-            selected = if (is.null(prev_sections)) names(sections) else intersect(prev_sections, names(sections)),
+            selected = if (is.null(prev_sections)) intersect(c("interp", "plot"), names(sections)) else intersect(prev_sections, names(sections)),
             width = "100%"))),
       div(class = "stat-report-export",
         radioButtons("gre_report_format", "Document format", c("HTML", "PDF", "Word"),
@@ -881,8 +1060,7 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
   })
 
   output$gre_report_download_ui <- renderUI({
-    if (!length(input$gre_report_tables) && !length(input$gre_report_sections))
-      return(p("Select at least one table or supporting section."))
+
     downloadButton("gre_download_report", "Download statistical report", class = "btn-success")
   })
 
@@ -905,27 +1083,57 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
       keep <- input$gre_report_tables %||% character(0)
       for (k in setdiff(names(gre_report_tables), keep)) r[k] <- list(NULL)
       secs <- input$gre_report_sections %||% character(0)
-      if (!"interp" %in% secs) r$interp <- NULL
-      if (!"plot" %in% secs) r$trend_fits <- list()
+      findings <- gre_report_findings(r, input$gre_digits %||% 3L)
+      if ("interp" %in% secs && length(intersect(keep, names(gre_report_tables)))) {
+        r$interp <- gre_interpretation_text(c(r[setdiff(names(r), "trend_fits")], list(
+          year = r$raw[[r$year_col]], trend_fits = if ("trend" %in% keep) r$trend_fits else list())))
+      } else r$interp <- NULL
       font  <- raisins_font_value(input$gre_font %||% "cambria")
-      style <- raisins_tstyle_value(input$gre_table_style %||% "classic")
+      style <- raisins_tstyle_value(input$gre_table_style)
       # As in RBD: PDF via xelatex with the chosen font's twin (www/fonts);
       # Word gets font and table style applied to the .docx after rendering.
+      header <- input$gre_header_mode %||% "default"
+      td <- tempfile("gre-report-")
+      dir.create(td)
+      on.exit(unlink(td, recursive = TRUE), add = TRUE)
+      logo <- if (header == "custom") tryCatch(
+        gre_report_logo(input$gre_header_logo, td),
+        error = function(e) {
+          showNotification(conditionMessage(e), type = "error")
+          stop(e)
+        })
+      source_default <- if (!is.null(input$rcbd_file1)) input$rcbd_file1$name else
+        paste("Bundled example", input$demo_data_select %||% "")
+      metadata <- data.frame(Item = c("Data source", "Units", "Known boundary or definition changes"),
+        Detail = c(gre_report_text(input$gre_report_source, source_default),
+                   gre_report_text(input$gre_report_units, "Not supplied"),
+                   gre_report_text(input$gre_report_changes, "Not supplied")))
+      quality <- rbind(metadata, r$quality)
       fmt <- switch(input$gre_report_format,
                     HTML = rmarkdown::html_document(df_print = "kable"),
-                    Word = rmarkdown::word_document(reference_docx = "styles.docx"),
+                    Word = rmarkdown::word_document(reference_docx = if (header == "default" && file.exists("styles.docx"))
+                      normalizePath("styles.docx", winslash = "/") else "default"),
                     PDF  = rmarkdown::pdf_document(
                       latex_engine = "xelatex",
                       pandoc_args  = raisins_font_pdf_args(font, normalizePath("www/fonts", winslash = "/"))))
-      td <- tempdir()
       file.copy("growth_rate_report.Rmd", file.path(td, "growth_rate_report.Rmd"), overwrite = TRUE)
-      if (file.exists("styles.docx"))
-        file.copy("styles.docx", file.path(td, "styles.docx"), overwrite = TRUE)
       # The report uses the trend plot exactly as customised in its workspace.
       plot_path <- NA
-      if (length(r$trend_fits)) {
+      if ("plot" %in% secs && length(r$trend_fits)) {
         plot_path <- file.path(td, "gre_trend.png")
         ggplot2::ggsave(plot_path, gre_trend_plot_obj(), width = 8, height = 5, dpi = 150, bg = "white")
+      }
+      extra_figures <- list()
+      for (key in intersect(c("publication", "exploration"), secs)) {
+        plot <- tryCatch(if (key == "publication") publication_plot() else explore_plot(),
+                         shiny.silent.error = function(e) NULL)
+        if (is.null(plot)) {
+          showNotification(paste("The", key, "figure was unavailable and was omitted."), type = "warning")
+          next
+        }
+        path <- file.path(td, paste0(key, ".png"))
+        ggplot2::ggsave(path, plot, width = 8, height = 5, dpi = 200, bg = "white")
+        extra_figures[[key]] <- path
       }
       out <- rmarkdown::render(
         input = file.path(td, "growth_rate_report.Rmd"),
@@ -933,9 +1141,15 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
         params = list(
           table_style = style,
           font        = font,
+          digits      = as.integer(input$gre_digits %||% 3L),
           growth = r$growth, trend = r$trend, mk = r$mk,
-          instab = r$instab, decomp = r$decomp,
-          interp = r$interp, plot_path = plot_path, alpha = r$alpha),
+          instab = r$instab, decomp = r$decomp, group_comparison = r$group_comparison, quality = quality,
+          header_text = switch(header, custom = gre_report_text(input$gre_header_text, ""),
+                               default = if (input$gre_report_format != "Word") "Statoberry" else "",
+                               ""),
+          logo_path = logo,
+          interp = r$interp, plot_path = plot_path, extra_figures = extra_figures,
+          findings = findings, alpha = r$alpha),
         envir = new.env(parent = globalenv()), quiet = TRUE)
       if (identical(input$gre_report_format, "Word")) {
         raisins_font_docx(out, font)
@@ -1058,7 +1272,171 @@ gre_support_user_details <- function(user, user_info, users, verified_demo_email
 
 ## Time-series data checks, in the list shape greyskull::raisins_check_boxes() draws:
 ## list(issues = list(list(title, entries, action)), valid, skipped, blocked).
-gre_data_checks <- function(df, year_col, series, grouped = FALSE) {
+gre_report_text <- function(value, fallback) {
+  if (is.null(value) || !nzchar(trimws(value))) return(fallback)
+  substr(trimws(gsub("[[:cntrl:]]+", " ", value)), 1, 2000)
+}
+
+gre_report_logo <- function(upload, directory) {
+  if (is.null(upload)) return(NULL)
+  path <- upload$datapath
+  size <- file.info(path)$size
+  if (is.na(size) || size > 5 * 1024^2) stop("Use a PNG or JPEG logo no larger than 5 MB.")
+  signature <- readBin(path, "raw", n = 8L)
+  png <- identical(signature, as.raw(c(137, 80, 78, 71, 13, 10, 26, 10)))
+  jpeg <- identical(head(signature, 3L), as.raw(c(255, 216, 255)))
+  if (!png && !jpeg) stop("The logo file must contain a PNG or JPEG image.")
+  image <- tryCatch(magick::image_read(path), error = function(e) NULL)
+  if (is.null(image)) stop("The logo could not be read. Try a different PNG or JPEG.")
+  logo <- file.path(directory, "report-logo.png")
+  image <- magick::image_strip(magick::image_resize(image[1], "1200x600>"))
+  magick::image_write(image, logo, format = "png")
+  logo
+}
+
+gre_growth_row <- function(series, year, y, cg) {
+  observed <- year[is.finite(y)]
+  data.frame(
+    Series = series, Observations = length(observed),
+    `Start year` = if (length(observed)) min(observed) else NA_real_,
+    `End year` = if (length(observed)) max(observed) else NA_real_,
+    Mean = if (length(observed)) mean(y[is.finite(y)]) else NA_real_,
+    `CGR (%/yr)` = cg$rate, `CGR CI low` = cg$ci[1], `CGR CI high` = cg$ci[2],
+    `CGR p` = cg$p, `CAGR (%/yr)` = gre_cagr(year, y),
+    `Annual avg (%/yr)` = gre_annual_growth(year, y),
+    `Lag-1 residual r` = cg$lag1, `Lag pairs` = cg$pairs, check.names = FALSE)
+}
+
+gre_panel_growth <- function(raw, combined, year_col, group_col, series, alpha) {
+  raw[[year_col]] <- as.numeric(as.character(raw[[year_col]]))
+  raw <- raw[order(raw[[year_col]]), , drop = FALSE]
+  groups <- split(raw, trimws(as.character(raw[[group_col]])))
+  frames <- c(list(combined), unname(groups))
+  area <- gre_measure_column(combined, year_col, "area")
+  production <- gre_measure_column(combined, year_col, "prod")
+  if (!is.na(area) && !is.na(production)) {
+    yield_name <- make.unique(c(series, "Derived yield (production / area)"))[length(series) + 1L]
+    frames <- lapply(frames, function(frame) {
+      a <- frame[[area]]
+      p <- frame[[production]]
+      frame[[yield_name]] <- ifelse(is.finite(a) & a > 0 & is.finite(p) & p >= 0, p / a, NA_real_)
+      frame
+    })
+    series <- c(series, yield_name)
+  }
+  group_names <- make.unique(c("Combined total", names(groups)))
+  tables <- paths <- list()
+  for (i in seq_along(frames)) {
+    frame <- frames[[i]]
+    year <- frame[[year_col]]
+    scope <- if (i == 1L) "Combined" else "Group"
+    for (name in series) {
+      y <- frame[[name]]
+      key <- length(tables) + 1L
+      cg <- gre_cgr(year, y, alpha)
+      tables[[key]] <- cbind(Group = group_names[i], Scope = scope,
+                            gre_growth_row(name, year, y, cg))
+      paths[[key]] <- data.frame(Group = group_names[i], Scope = scope,
+                                Year = year, Series = name, Value = y)
+    }
+  }
+  list(table = do.call(rbind, tables), data = do.call(rbind, paths))
+}
+
+gre_quality_summary <- function(raw, annual, year_col, group, requested, checks) {
+  years <- annual[[year_col]]
+  grouped <- nzchar(group) && group %in% names(raw)
+  group_names <- if (grouped) sort(unique(trimws(as.character(raw[[group]])))) else character()
+  series_notes <- vapply(requested, function(name) {
+    if (!name %in% checks$valid) return("Excluded by data checks")
+    y <- annual[[name]]
+    paste(sum(is.finite(y)), "usable annual values;", sum(!is.finite(y)), "missing annual values;",
+          sum(!is.finite(raw[[name]])), "missing input values;",
+          sum(is.finite(y) & y <= 0), "nonpositive annual values")
+  }, character(1))
+  data.frame(
+    Item = c("Year column", "Period", "Input rows", "Recorded years", "Unrecorded calendar years",
+             "Grouping", "Groups covered", names(series_notes)),
+    Detail = c(year_col, paste(min(years), max(years), sep = "–"), nrow(raw), length(years),
+               max(years) - min(years) + 1 - length(years),
+               if (grouped) group else "Single annual series",
+               if (grouped) paste(length(group_names), "—", paste(group_names, collapse = ", ")) else "Not applicable",
+               series_notes),
+    row.names = NULL)
+}
+
+gre_chart <- function(data, mapping, title, x, y) {
+  ggplot2::ggplot(data, mapping) +
+    ggplot2::labs(title = title, x = x, y = y) +
+    ggplot2::theme_minimal(base_size = 13) +
+    ggplot2::theme(plot.title = ggplot2::element_text(face = "bold", colour = "#23465e"),
+                   panel.grid.minor = ggplot2::element_blank(),
+                   legend.position = "bottom", legend.title = ggplot2::element_blank())
+}
+
+gre_measure_column <- function(df, year_col, pattern) {
+  hits <- setdiff(grep(pattern, names(df), value = TRUE, ignore.case = TRUE), year_col)
+  hits <- hits[vapply(df[hits], is.numeric, logical(1)) & !gre_is_ratio(hits)]
+  if (length(hits) == 1L) hits else NA_character_
+}
+
+gre_is_ratio <- function(name) {
+  grepl("yield|rate|ratio|percent|%|per[ _/-]|productivity|price|index|average|mean|share",
+        name, ignore.case = TRUE)
+}
+
+gre_prepare_data <- function(df, year_col, series, group_col = "") {
+  df[[year_col]] <- as.numeric(as.character(df[[year_col]]))
+  if (nzchar(group_col) && group_col %in% names(df)) {
+    area_prod <- grep("area|prod", names(df), value = TRUE, ignore.case = TRUE)
+    area_prod <- area_prod[vapply(df[area_prod], is.numeric, logical(1)) & !gre_is_ratio(area_prod)]
+    cols <- setdiff(union(series, area_prod), c(year_col, group_col))
+    df <- stats::aggregate(df[cols], by = setNames(list(df[[year_col]]), year_col),
+                           FUN = function(x) if (all(is.finite(x))) sum(x) else NA_real_)
+  }
+  df[order(df[[year_col]]), , drop = FALSE]
+}
+
+gre_decomposition <- function(df, year_col) {
+  area_col <- gre_measure_column(df, year_col, "area")
+  prod_col <- gre_measure_column(df, year_col, "prod")
+  if (is.na(area_col) || is.na(prod_col))
+    return(list(message = "Decomposition needs one identifiable numeric Area column and one Production column."))
+  endpoints <- c(1L, nrow(df))
+  area <- df[[area_col]][endpoints]
+  prod <- df[[prod_col]][endpoints]
+  if (!all(is.finite(area) & area > 0 & is.finite(prod) & prod >= 0))
+    return(list(message = "Both endpoints need positive area and nonnegative production, with no missing components."))
+  yield <- prod / area
+  change <- diff(prod)
+  effects <- c(yield[1] * diff(area), area[1] * diff(yield), diff(area) * diff(yield), change)
+  list(table = data.frame(
+    Effect = c("Area effect", "Yield effect", "Interaction effect", "Total change"),
+    Contribution = effects,
+    `Share (%)` = if (change == 0) rep(NA_real_, 4) else 100 * effects / change,
+    check.names = FALSE
+  ), message = if (change == 0) "Percentage shares are undefined when total production change is zero.")
+}
+
+gre_table_cells <- function(d, digits) {
+  digits <- as.integer(digits)
+  for (nm in names(d)[vapply(d, is.numeric, logical(1))]) {
+    x <- d[[nm]]
+    d[[nm]] <- if (nm %in% c("CGR p", "p-value")) {
+      p_digits <- max(3L, digits)
+      threshold <- formatC(10^-p_digits, digits = p_digits, format = "f")
+      ifelse(x < as.numeric(threshold), paste("<", threshold),
+             formatC(x, digits = p_digits, format = "f"))
+    } else {
+      formatC(x, digits = if (nm %in% c("Start year", "End year", "S", "Observations", "Lag pairs")) 0L else digits, format = "f")
+    }
+    d[[nm]][!is.finite(x)] <- "—"
+  }
+  d
+}
+
+gre_data_checks <- function(df, year_col, series, group_col = "") {
+  series <- intersect(series, setdiff(names(df), c(year_col, group_col)))
   out <- list(issues = list(), valid = series, skipped = character(), blocked = FALSE)
   add <- function(title, entries, action, blocking = FALSE) {
     out$issues[[length(out$issues) + 1L]] <<- list(title = title, entries = entries, action = action)
@@ -1068,23 +1446,37 @@ gre_data_checks <- function(df, year_col, series, grouped = FALSE) {
 
   yr  <- df[[year_col]]
   num <- suppressWarnings(as.numeric(as.character(yr)))
-  bad_year <- which(is.na(num))
+  bad_year <- which(!is.finite(num) | num != trunc(num))
+  if (length(bad_year)) num[bad_year] <- NA_real_
   if (length(bad_year))
     add("Missing or invalid years", paste0(year_col, ": data row ", bad_year, " = ", as.character(yr[bad_year])),
         "Every row needs a numeric year such as 2001. Please correct these rows in your original file.", TRUE)
+  grouped <- nzchar(group_col) && group_col %in% setdiff(names(df), year_col)
+  if (grouped && !length(bad_year)) {
+    group <- trimws(as.character(df[[group_col]]))
+    counts <- table(num, group)
+    if (anyNA(group) || any(!nzchar(group)) || any(counts != 1L))
+      add("Incomplete or duplicate group-year records", group_col,
+          "Annual totals require exactly one row for every group in every year and no missing group labels.", TRUE)
+  }
   if (!grouped) {
     dup <- unique(num[duplicated(num) & !is.na(num)])
     if (length(dup))
       add("Repeated years", paste("Year", dup),
-          "Each year should appear once. If the file has one row per district or region, choose that column in the Group column picker.", TRUE)
+          "Each year should appear once. If the file has one row per group, choose that column in the Group column picker.", TRUE)
   }
-  if (length(unique(num[!is.na(num)])) < 3L)
-    add("Too few years", paste(length(unique(num[!is.na(num)])), "year(s) found"),
+  if (length(unique(num[is.finite(num)])) < 3L)
+    add("Too few years", paste(length(unique(num[is.finite(num)])), "year(s) found"),
         "Growth and trend analysis needs at least 3 years of data.", TRUE)
 
   rejected <- character()
   prints <- list()
   for (nm in intersect(series, setdiff(names(df), year_col))) {
+    if (grouped && gre_is_ratio(nm)) {
+      add("Non-additive series", nm,
+          "Yield, rates and other ratios cannot be summed across groups. Supply a correctly weighted annual series instead.")
+      rejected <- c(rejected, nm); next
+    }
     x <- df[[nm]]
     probe <- if (is.numeric(x)) x else suppressWarnings(as.numeric(as.character(x)))
     blank <- which(is.na(x) | (is.character(x) & !nzchar(trimws(as.character(x)))))
@@ -1099,13 +1491,18 @@ gre_data_checks <- function(df, year_col, series, grouped = FALSE) {
           "Some entries are not valid numbers. Please check the entries listed above. This column will be skipped.")
       rejected <- c(rejected, nm); next
     }
+    usable_years <- if (grouped) sum(!vapply(split(probe, num), function(x) any(!is.finite(x)), logical(1))) else sum(is.finite(probe))
+    if (usable_years < 3L) {
+      add("Too few usable observations", nm, "At least three years with usable values are required for this series.")
+      rejected <- c(rejected, nm); next
+    }
     if (length(blank))
       add("Missing values", paste0(nm, ": year ", as.character(yr[blank])),
-          "These years have no value and are left out of the calculations for this series. Leave them blank rather than typing 0.")
+          "These years are omitted for this series. In grouped data a missing component makes the annual total unavailable.")
     nonpos <- which(is.finite(probe) & probe <= 0)
     if (length(nonpos))
       add("Zero or negative values", paste0(nm, ": year ", as.character(yr[nonpos]), " = ", probe[nonpos]),
-          "Compound growth rates (CGR, CAGR) need positive values, so these years are skipped for those rates. Trend and instability use them as they are.")
+          "CGR requires every observed value to be positive. CAGR requires positive endpoints. CV and CDVI require nonnegative values and a positive mean.")
     same <- names(prints)[vapply(prints, function(p) identical(p, as.numeric(probe)), logical(1))]
     if (length(same))
       add("Identical columns", paste(c(same[1], nm), collapse = " and "),
@@ -1153,7 +1550,7 @@ gre_interpretation_text <- function(r) {
   paras <- character()
 
   openings <- c(
-    "Hi, please relate the explanation below with the tables in the 'Analysis Results', 'Trend Fitting', 'Trend Test' and 'Instability' tabs.",
+    "Hi, please relate the explanation below with the tables in the 'Analysis Results', 'Trend' and 'Instability' tabs.",
     "Dear user, kindly connect the explanation below with the corresponding tables in the analysis subtabs.",
     "Hello, the tables in the analysis subtabs should be read together with the explanation below.",
     "Dear researcher, please interpret the results presented in the analysis subtabs based on the following explanation.")
@@ -1173,12 +1570,12 @@ gre_interpretation_text <- function(r) {
     lines <- vapply(seq_len(nrow(g)), function(i) {
       cgr <- g$`CGR (%/yr)`[i]
       if (is.na(cgr))
-        return(paste0(g$Series[i], ": the compound growth rate could not be estimated because fewer than three positive values were available."))
+        return(paste0(g$Series[i], ": the compound growth rate could not be estimated because it requires at least three observations and all observed values must be positive."))
       dir <- if (cgr > 0) "grew" else if (cgr < 0) "declined" else "remained unchanged"
-      sig <- if (!is.na(g$`CGR p`[i]) && g$`CGR p`[i] < alpha) "statistically significant" else "not statistically significant"
-      paste0(g$Series[i], " ", dir, " at a compound growth rate (CGR) of ", abs(cgr), "% per year (", sig, ", ",
-             gre_p_text(g$`CGR p`[i]), "). The endpoint CAGR was ", g$`CAGR (%/yr)`[i],
-             "% per year and the average year-on-year change was ", g$`Annual avg (%/yr)`[i], "%.")
+      sig <- if (is.na(g$`CGR p`[i])) "inference unavailable" else if (g$`CGR p`[i] < alpha) "statistically significant" else "not statistically significant"
+      paste0(g$Series[i], " ", dir, " at a compound growth rate (CGR) of ", signif(abs(cgr), 4), "% per year (", sig, ", ",
+             gre_p_text(g$`CGR p`[i]), "). The endpoint CAGR was ", signif(g$`CAGR (%/yr)`[i], 4),
+             "% per year and the average year-on-year change was ", signif(g$`Annual avg (%/yr)`[i], 4), "%.")
     }, character(1))
     paras <- c(paras, paste0(
       "Growth rates. The CGR is estimated from the log-linear model ln(y) = a + bt fitted to all years, so it reflects the whole period; ",
@@ -1188,31 +1585,30 @@ gre_interpretation_text <- function(r) {
 
   # Trend fitting
   if (length(r$trend_fits)) {
-    t <- r$trend
     lines <- vapply(names(r$trend_fits), function(s) {
       best <- r$trend_fits[[s]]$best
-      adj  <- if (!is.null(t)) t$`Adj R2`[t$Series == s & t$Model == best] else NA
-      paste0("For ", s, " the ", tolower(best), " trend fitted best (adjusted R² = ", adj[1], ").")
+      paste0("For ", s, " the ", tolower(best), " trend had the lowest AICc among eligible models.")
     }, character(1))
     paras <- c(paras, paste0(
-      "Trend fitting. Linear, quadratic, cubic and exponential trends were fitted and ranked by adjusted R². ",
-      paste(lines, collapse = " "),
-      " When two models have almost the same adjusted R², the simpler one is usually preferred."))
+      "Trend fitting. Eligible trend models were compared by AICc on the original response scale. ",
+      paste(lines, collapse = " ")))
   }
 
   # Mann-Kendall + Sen's slope
   m <- r$mk
   if (!is.null(m) && nrow(m)) {
     lines <- vapply(seq_len(nrow(m)), function(i) {
+      ci <- signif(c(m$`Sen CI low`[i], m$`Sen CI high`[i]), 4)
       trend <- if (m$Trend[i] == "No significant trend") "showed no significant monotonic trend" else
         paste0("showed a significant ", tolower(m$Trend[i]), " trend")
-      paste0(m$Series[i], " ", trend, " (Kendall's τ = ", m$`Kendall tau`[i], ", ", gre_p_text(m$`p-value`[i]),
-             "), with a Sen's slope of ", m$`Sen slope/yr`[i], " units per year (confidence interval ",
-             m$`Sen CI low`[i], " to ", m$`Sen CI high`[i], ").")
+      paste0(m$Series[i], " ", trend, " (Kendall's τ = ", signif(m$`Kendall tau`[i], 4), ", ", gre_p_text(m$`p-value`[i]),
+             "), with a Sen's slope of ", signif(m$`Sen slope/yr`[i], 4), " units per year",
+             if (all(is.finite(ci))) paste0(" (confidence interval ", ci[1], " to ", ci[2], ").")
+             else " (confidence interval unavailable).")
     }, character(1))
     paras <- c(paras, paste0(
       "Trend test. The non-parametric Mann-Kendall test checks for a steady rise or fall without assuming a straight line or normal errors, ",
-      "and Sen's slope gives a robust estimate of the change per year in the series' own units. ",
+      "and Sen's slope gives a robust estimate of change per year. The p-value and interval assume independent observations. ",
       paste(lines, collapse = " ")))
   }
 
@@ -1220,24 +1616,19 @@ gre_interpretation_text <- function(r) {
   ins <- r$instab
   if (!is.null(ins) && nrow(ins)) {
     lines <- vapply(seq_len(nrow(ins)), function(i)
-      paste0(ins$Series[i], " had a CV of ", ins$`CV (%)`[i], "% and a CDVI of ", ins$`CDVI (%)`[i], "% (",
-             tolower(as.character(ins$Stability[i])), ")."), character(1))
+      paste0(ins$Series[i], " had a CV of ", signif(ins$`CV (%)`[i], 4), "% and a CDVI of ", signif(ins$`CDVI (%)`[i], 4), "%."), character(1))
     paras <- c(paras, paste0(
       "Instability. The coefficient of variation (CV) includes variation caused by the trend itself, whereas the ",
-      "Cuddy-Della Valle Index (CDVI) removes the trend and so reflects genuine year-to-year instability. ",
-      "A CDVI below 15% indicates low, 15% to 30% moderate, and above 30% high instability. ",
+      "Cuddy-Della Valle Index (CDVI) adjusts CV for the fitted linear trend. ",
       paste(lines, collapse = " ")))
   }
 
   # Decomposition
   d <- r$decomp
   if (!is.null(d) && nrow(d)) {
-    share <- function(e) d$`Share (%)`[d$Effect == e]
-    ae <- share("Area effect"); ye <- share("Yield effect"); ie <- share("Interaction effect")
-    driver <- if (length(ae) && length(ye)) (if (ae > ye) "area expansion" else "yield improvement") else "mixed factors"
     paras <- c(paras, paste0(
-      "Area-yield decomposition. The total change in production between the first and last year was split into an area effect (",
-      ae, "%), a yield effect (", ye, "%) and an interaction effect (", ie, "%). The change was driven mainly by ", driver, "."))
+      "Area-yield decomposition. The first-to-last production change is the sum of the area, yield and interaction effects. ",
+      "These are accounting contributions. Offsetting effects can produce negative shares or shares above 100%."))
   }
 
   paras <- c(paras, gre_analysis_citation(), paste(
@@ -1271,9 +1662,8 @@ gre_tour_steps <- function() {
       "#sidebar",
       "#gre_mainpanel",
       "a[data-value='Trend']",
-      "a[data-value='MannKendall']",
+      "a[data-value='Plots']",
       "a[data-value='Instability']",
-      "a[data-value='Decomposition']",
       "a[data-value='Interpretation']",
       "a[data-value='Report']",
       "#rcbd_logout"
@@ -1351,9 +1741,9 @@ gre_tour_steps <- function() {
       # Subtabs
       paste0(
         "<b>&#128196; Analysis Subtabs</b><br><br>The analysis subtabs follow this order:<br>",
-        "1. <b>Analysis Results</b><br>2. <b>Trend Fitting</b><br>3. <b>Trend Test</b><br>",
-        "4. <b>Instability</b><br>5. <b>Decomposition</b><br>6. <b>Interpretation</b><br>",
-        "7. <b>Statistical Report</b><br><br>View Data and FAQs are available in the main navigation."
+        "1. <b>Analysis Results</b><br>2. <b>Trend</b><br>3. <b>Plots &amp; Graphs</b><br>",
+        "4. <b>Instability &amp; Decomposition</b><br>5. <b>Interpretation</b><br>",
+        "6. <b>Statistical Report</b><br><br>View Data and FAQs are available in the main navigation."
       ),
       # Analysis Results
       paste0(
@@ -1368,7 +1758,7 @@ gre_tour_steps <- function() {
         "Use this panel to configure the analysis.<br><br>",
         "&#8226; Upload your dataset (CSV / Excel).<br>",
         "&#8226; Select the <b>Year</b> column and the <b>Series</b> to analyse.<br>",
-        "&#8226; Optionally pick a <b>Group</b> column to sum districts or regions by year.<br>",
+        "&#8226; Optionally pick a <b>Group</b> column to sum groups by year.<br>",
         "&#8226; Tick the <b>trend analyses</b> you need.<br>",
         "&#8226; Click <b>Run Analysis</b>."
       ),
@@ -1381,27 +1771,20 @@ gre_tour_steps <- function() {
       ),
       # Trend Fitting
       paste0(
-        "<b>&#128200; Trend Fitting Tab</b><br><br>",
-        "<b>Linear, quadratic, cubic and exponential</b> trends ranked by adjusted R&sup2;, ",
-        "with a <b>fitted-trend plot</b> you can download."
+        "<b>&#128200; Trend Tab</b><br><br>",
+        "<b>Linear, quadratic, cubic and exponential</b> trends compared by AICc, ",
+        "alongside the Mann-Kendall trend test and Sen's slope."
       ),
-      # Trend Test
+      # Plots & Graphs
       paste0(
-        "<b>&#8599;&#65039; Trend Test Tab</b><br><br>",
-        "The non-parametric <b>Mann-Kendall test</b> for a steady rise or fall, ",
-        "with <b>Sen's slope</b> as the change per year."
+        "<b>Plots &amp; Graphs</b><br><br>",
+        "Explore annual trajectories and change patterns, inspect diagnostics, and export publication figures."
       ),
-      # Instability
+      # Instability and decomposition
       paste0(
-        "<b>&#12336;&#65039; Instability Tab</b><br><br>",
-        "<b>Coefficient of variation</b> and the <b>Cuddy-Della Valle Index</b>, ",
-        "which removes the trend to show genuine year-to-year instability."
-      ),
-      # Decomposition
-      paste0(
-        "<b>&#129383; Decomposition Tab</b><br><br>",
-        "Splits the change in <b>production</b> into <b>area</b>, <b>yield</b> and ",
-        "<b>interaction</b> effects. Needs columns named like <i>Area</i> and <i>Production</i>."
+        "<b>Instability &amp; Decomposition</b><br><br>",
+        "Compare the coefficient of variation and trend-adjusted instability, ",
+        "then see how area, yield and their interaction contribute to the change in production."
       ),
       # Interpretation
       paste0(
@@ -1533,4 +1916,50 @@ gre_tour_server <- function(input, session, current_subscriber) {
       run_tour()
     }
   })
+}
+gre_table_note <- function(key, alpha) {
+  level <- paste0(100 * (1 - alpha), "%")
+  switch(key,
+    growth = paste(level, "CGR intervals and p-values assume independent, constant-variance normal errors on the log scale. CAGR uses the observed endpoints. Average annual change uses adjacent calendar years."),
+    diagnostics = "Lag-1 r is the descriptive correlation of log-scale residuals in adjacent calendar years. Lag pairs is the number of pairs available for that calculation.",
+    trend = "Lower AICc is preferred among eligible fits on the original response scale. A dash indicates an unavailable criterion.",
+    mk = paste("Tau-b adjusts for ties. Sen's slope is in series units per year. The", level,
+               "interval and the p-value assume independent observations. P-values are unadjusted across series."),
+    instab = "CV is the coefficient of variation. CDVI adjusts CV using the fitted linear trend. Both require nonnegative observations and a positive mean.",
+    decomp = "Shares use total endpoint production change as the denominator and are undefined when it is zero. Offsetting contributions can yield negative shares or shares above 100%.",
+    group = paste("Combined yield is total production divided by total area. The", level,
+                  "intervals describe individual model estimates. They do not test differences between groups."),
+    quality = "For grouped data, an annual total is unavailable if a component value is missing."
+  )
+}
+
+gre_report_findings <- function(r, digits) {
+  findings <- character()
+  if (!is.null(r$growth)) {
+    g <- gre_table_cells(r$growth, digits)
+    ok <- is.finite(r$growth$`CGR (%/yr)`)
+    if (any(ok)) {
+      estimates <- paste0(g$Series[ok], " ", g$`CGR (%/yr)`[ok], "% per year")
+      findings <- c(findings, paste0("Estimated compound growth: ", paste(estimates, collapse = "; "), "."))
+    }
+  }
+  if (!is.null(r$trend)) {
+    best <- r$trend[r$trend$Best == "Yes", , drop = FALSE]
+    if (nrow(best)) findings <- c(findings, paste0("Lowest AICc: ",
+      paste(paste0(best$Series, " (", tolower(best$Model), ")"), collapse = "; "), "."))
+  }
+  if (!is.null(r$mk)) {
+    m <- r$mk[is.finite(r$mk$`p-value`), , drop = FALSE]
+    significant <- m[m$`p-value` < r$alpha, , drop = FALSE]
+    if (nrow(m)) findings <- c(findings, if (nrow(significant)) paste0(
+      "Mann-Kendall at the selected significance level: ",
+      paste(paste0(significant$Series, " (", tolower(significant$Trend), ")"), collapse = "; "), ".")
+      else "No tested series met the selected Mann-Kendall significance threshold.")
+  }
+  if (!is.null(r$decomp)) {
+    d <- gre_table_cells(r$decomp, digits)
+    findings <- c(findings, paste0("Endpoint production change: ",
+      d$Contribution[d$Effect == "Total change"], " in the source production units."))
+  }
+  findings
 }
