@@ -73,6 +73,13 @@ gre_calculator_loader <- function(output) {
   )
 }
 
+gre_tab_download_ui <- function(key) {
+  div(style = "text-align: center; margin: 20px 0;",
+      radioButtons(paste0("gre_format_", key), "Report format:",
+        choices = c("HTML", "PDF", "Word", "Excel"), inline = TRUE),
+      downloadButton(paste0("gre_download_", key), "Download report"))
+}
+
 gre_ui <- function() {
   fluidPage(
     titlePanel(tags$div(tags$b("Growth Rate Estimation & Trend Analysis", style = "color:#000000"))),
@@ -307,7 +314,8 @@ $(document).on('hidden.bs.select', '#gre_series', function () {
               )
             ),
             tags$br(),
-            gre_calculator_loader(uiOutput("gre_growth_table"))
+            gre_calculator_loader(uiOutput("gre_growth_table")),
+            gre_tab_download_ui("growth")
           )
         )
       ),
@@ -320,7 +328,8 @@ $(document).on('hidden.bs.select', '#gre_series', function () {
             tags$hr(),
             tags$h3("Mann-Kendall test and Sen's slope"),
             uiOutput("gre_mk_intro"),
-            gre_calculator_loader(uiOutput("gre_mk_table"))
+            gre_calculator_loader(uiOutput("gre_mk_table")),
+            gre_tab_download_ui("trend")
           )
         )
       ),
@@ -332,7 +341,8 @@ $(document).on('hidden.bs.select', '#gre_series', function () {
             gre_calculator_loader(uiOutput("gre_instab_table")),
             tags$hr(),
             tags$h3("Area-yield decomposition"),
-            gre_calculator_loader(uiOutput("gre_decomp_table"))
+            gre_calculator_loader(uiOutput("gre_decomp_table")),
+            gre_tab_download_ui("instability")
           )
         )
       ),
@@ -341,8 +351,9 @@ $(document).on('hidden.bs.select', '#gre_series', function () {
         conditionalPanel("output.submitClicked == true",
           div(class = "gre-styled-results",
             h3("Group and combined growth"),
-            p("Combined yield uses total production divided by total area, in the supplied production and area units. Estimates are descriptive comparisons across groups."),
-            uiOutput("gre_group_comparison_table")
+            p("Estimates are descriptive comparisons across groups. If your data contain area and production, the app also derives yield using the supplied units."),
+            uiOutput("gre_group_comparison_table"),
+            gre_tab_download_ui("groups")
           )
         )
       ),
@@ -382,12 +393,14 @@ $(document).on('hidden.bs.select', '#gre_series', function () {
             tabPanel("Decomposition",
               gre_interactive_workspace_ui("Area-Yield Decomposition",
                 plotly::plotlyOutput("gre_decomp_plot", height = "420px")))
-          )
+          ),
+          gre_tab_download_ui("plots")
         )
       ),
       tabPanel("Data Quality", value = "DataQuality", icon = icon("clipboard-check"),
         conditionalPanel("output.submitClicked == true",
-          div(class = "gre-styled-results", h3("Coverage and exclusions"), uiOutput("gre_quality_table"))
+          div(class = "gre-styled-results", h3("Coverage and exclusions"), uiOutput("gre_quality_table"),
+              gre_tab_download_ui("quality"))
         )
       ),
 
@@ -461,6 +474,7 @@ $(document).on('hidden.bs.select', '#gre_series', function () {
           tags$br(),
           tags$br(),
           uiOutput("var_AI_path_end_gre"),
+          gre_tab_download_ui("interpretation"),
           tags$br(),
           tags$br()
         )
@@ -475,6 +489,12 @@ $(document).on('hidden.bs.select', '#gre_series', function () {
           '.stat-report-intro{color:#59655e;margin-bottom:24px;max-width:960px;} ',
           '.stat-report-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(285px,1fr);gap:24px;align-items:start;} ',
           '.stat-report-panel{border:1px solid #dce3dc;border-radius:6px;padding:20px 22px;background:#fff;min-width:0;} ',
+          '.gre-report-details{max-width:1180px;margin:24px auto 0;gap:20px;align-items:stretch;} ',
+          '.gre-report-details .stat-report-panel{min-width:0;border-radius:14px;border:1px solid #d7e5de;background:linear-gradient(155deg,#f4faf7 0%,#fff 55%);box-shadow:0 5px 18px rgba(35,76,59,.07);} ',
+          '.gre-report-details .stat-report-panel legend{padding:4px 10px;border-radius:8px;background:#e7f3ec;color:#28563f;} ',
+          '.gre-report-details .control-label{color:#314b3f;font-weight:600;} ',
+          '.gre-report-details .form-control{border:1px solid #c9d9d0;border-radius:8px;box-shadow:none;} ',
+          '.gre-report-details .form-control:focus{border-color:#388873;box-shadow:0 0 0 2px rgba(56,136,115,.16);} ',
           '.stat-report-panel legend{font-family:Cambria,Georgia,serif;font-size:19px;font-weight:600;color:#31483b;border:0;margin:0 0 4px;padding:0;width:auto;} ',
           '.stat-report-note{font-size:13px;color:#6b756f;margin-bottom:16px;} ',
           '.stat-report-tables .shiny-options-group{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px;} ',
@@ -490,20 +510,28 @@ $(document).on('hidden.bs.select', '#gre_series', function () {
           '@media(max-width:850px){.stat-report-grid{grid-template-columns:1fr}.stat-report-export{justify-content:center}} ',
           '@media(max-width:520px){.stat-report-tables .shiny-options-group{grid-template-columns:1fr}.stat-report-panel{padding:16px}}'))),
         conditionalPanel("output.submitClicked == true",
-          div(class = "stat-report-grid",
+          div(class = "stat-report-grid gre-report-details",
             tags$fieldset(class = "stat-report-panel",
-              tags$legend("Report header"),
+              tags$legend(icon("heading"), " Report header"),
+              p(class = "stat-report-note", "Set the title, branding, and logo placement for your report."),
+              textInput("gre_report_title", "Report title", placeholder = "Growth Rate and Trend Analysis Report"),
               radioButtons("gre_header_mode", "Branding", c("Statoberry" = "default",
                            "No header" = "none", "Custom header" = "custom"), inline = TRUE),
               conditionalPanel("input.gre_header_mode == 'custom'",
-                textInput("gre_header_text", "Organisation or report header"),
+                textInput("gre_header_text", "Organisation or report header", placeholder = "e.g. Research and Analytics Unit"),
                 fileInput("gre_header_logo", "Logo (optional, PNG or JPEG, up to 5 MB)",
-                          accept = c("image/png", "image/jpeg", ".png", ".jpg", ".jpeg")))),
+                          accept = c("image/png", "image/jpeg", ".png", ".jpg", ".jpeg")),
+                selectInput("gre_logo_alignment", "Logo alignment", c("Left" = "left", "Center" = "center",
+                            "Right" = "right"), selected = "center"))),
             tags$fieldset(class = "stat-report-panel",
-              tags$legend("Data provenance"),
-              textInput("gre_report_source", "Data source or publication"),
-              textInput("gre_report_units", "Units by series"),
-              textAreaInput("gre_report_changes", "Known boundary or reporting definition changes", rows = 2))
+              tags$legend(icon("database"), " Data provenance"),
+              p(class = "stat-report-note", "Record where the data came from and how to read the values."),
+              textInput("gre_report_source", "Data source or publication",
+                        placeholder = "e.g. Annual monitoring report, 2014–2023"),
+              textInput("gre_report_units", "Units by series",
+                        placeholder = "e.g. Count: cases; Revenue: USD thousands; Rate: %"),
+              textAreaInput("gre_report_changes", "Known changes in coverage or reporting definitions", rows = 2,
+                            placeholder = "e.g. Two sites were added in 2020; reporting definitions stayed the same."))
           )
         ),
         uiOutput("gre_report_body")

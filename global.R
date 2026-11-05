@@ -1,3 +1,11 @@
+# Keep source files, uploaded labels and report rendering in a UTF-8 locale.
+if (!l10n_info()[["UTF-8"]]) {
+  for (locale in c("C.UTF-8", "en_US.UTF-8", ".UTF-8")) {
+    suppressWarnings(Sys.setlocale("LC_CTYPE", locale))
+    if (l10n_info()[["UTF-8"]]) break
+  }
+}
+
 ########### global of RAISINS Growth Rate Estimation  (Single Universe: shared code in greyskull)
 options(shiny.maxRequestSize = 100 * 1024^2) # bounded large-file uploads: 100 MiB
 

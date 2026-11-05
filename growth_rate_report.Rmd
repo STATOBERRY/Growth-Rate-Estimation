@@ -1,5 +1,6 @@
 ---
-title: "RAISINS — Growth Rate & Trend Analysis Report"
+title: |-
+  `r params$report_title`
 date: "`r format(Sys.Date(), '%d %B %Y')`"
 output:
   html_document:
@@ -13,7 +14,9 @@ header-includes:
 - \usepackage{array}
 - \usepackage{float}
 - \usepackage{graphicx}
+- \newsavebox{\gretablebox}
 params:
+  report_title: "Growth Rate and Trend Analysis Report"
   table_style: "classic"
   font: "cambria"
   digits: 3
@@ -26,6 +29,7 @@ params:
   quality: NULL
   header_text: ""
   logo_path: NULL
+  logo_alignment: "center"
   interp: NULL
   plot_path: NULL
   extra_figures: NULL
@@ -67,14 +71,17 @@ tbl <- function(d, cap, key) {
       kable(d, format = "html", caption = cap, row.names = FALSE, align = align),
       full_width = FALSE, html_font = params$font))
   } else if (is_pdf && !identical(names(d), c("Item", "Detail"))) {
-    # Paginate wide tables and fit each page to the available width.
+    # Keep natural table size and shrink only when the table is wider than the page.
     pages <- split(seq_len(nrow(d)), ceiling(seq_len(nrow(d)) / 20))
     for (rows in pages) {
-      cat("**", cap, "**\n\n", sep = "")
       table <- kable(d[rows, , drop = FALSE], format = "latex", booktabs = TRUE,
                      row.names = FALSE, align = align)
-      cat("```{=latex}\n\\noindent\\resizebox{\\linewidth}{!}{%\n",
-          as.character(table), "\n}\n```\n\n", sep = "")
+      cat("```{=latex}\n\\begin{samepage}\n\\noindent\\textbf{", cap, "}\\par\\nobreak\\smallskip\n",
+          "\\noindent\\sbox{\\gretablebox}{%\n",
+          as.character(table), "\n}%\n",
+          "\\ifdim\\wd\\gretablebox>\\linewidth\n",
+          "\\resizebox{\\linewidth}{!}{\\usebox{\\gretablebox}}%\n",
+          "\\else\\usebox{\\gretablebox}\\fi\\par\n\\end{samepage}\n```\n\n", sep = "")
     }
   } else {
     # Word: plain table; font and table style are applied to the .docx afterwards.
@@ -82,6 +89,9 @@ tbl <- function(d, cap, key) {
     print(kable(d, format = "pipe", caption = cap, row.names = FALSE, align = align))
   }
   cat("\n\n*Note.* ", markdown_text(gre_table_note(key, params$alpha)), "\n\n", sep = "")
+  formulas <- gre_table_math(key)
+  if (length(formulas)) cat("**Formulas used**\n\n",
+    paste0("$$\n", formulas, "\n$$", collapse = "\n\n"), "\n\n", sep = "")
 }
 ```
 
@@ -92,7 +102,7 @@ if (is_html) {
 }
 ```
 
-```{r masthead-logo, out.width='28%', fig.align='center'}
+```{r masthead-logo, out.width='28%', fig.align=if (is_html || is_pdf) params$logo_alignment else 'default'}
 if (!is.null(params$logo_path)) knitr::include_graphics(params$logo_path)
 ```
 
@@ -122,9 +132,12 @@ has_plot <- !is.null(params$plot_path) && !is.na(params$plot_path) && file.exist
 tbl(params$quality, "Data coverage and checks", "quality")
 ```
 
-## Methods
+```{r method-heading, results='asis'}
+if (any(vapply(params[c("growth", "trend", "mk", "instab", "decomp", "group_comparison")], has, logical(1))))
+  cat("## Methods\n\n")
+```
 
-The data are a yearly time series $Y_t$ observed at years $t_1 < t_2 < \dots < t_n$. Each selected series (for example area, production or yield) is analysed separately; when a group column is chosen, additive series are first summed over a fixed set of groups for each year. A total is unavailable if any component value is missing. Time is measured as $t = \text{year} - t_1$, so $t = 0$ in the first year.
+The data are a yearly time series $Y_t$ observed at years $t_1 < t_2 < \dots < t_n$. Each selected numeric series is analysed separately; when a group column is chosen, additive series are first summed over a fixed set of groups for each year. A total is unavailable if any component value is missing. Time is measured as $t = \text{year} - t_1$, so $t = 0$ in the first year.
 
 ```{asis, echo = has(params$growth)}
 ### Growth rates
@@ -203,7 +216,10 @@ so the three effects add up to the total change in production. Percentage shares
 Growth rates are estimated separately for each group and for the combined annual series. Combined derived yield is total production divided by total area in the source units. Group intervals are individual model intervals and do not test differences between groups.
 ```
 
-## Detailed results
+```{r results-heading, results='asis'}
+if (has_plot || any(vapply(params[c("growth", "trend", "mk", "instab", "decomp", "group_comparison")], has, logical(1))))
+  cat("## Detailed results\n\n")
+```
 
 ```{r growth, results='asis'}
 if (has(params$growth)) {

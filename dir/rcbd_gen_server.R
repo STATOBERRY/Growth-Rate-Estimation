@@ -1,156 +1,93 @@
-library(rhandsontable)
+gre_arrange_template <- function(start, end, series, grouped = FALSE, group_name = "Group", groups = "") {
+  is_year <- function(x) is.numeric(x) && length(x) == 1L && is.finite(x) &&
+    x == trunc(x) && x >= 1 && x <= 9999
+  if (!is_year(start) || !is_year(end) || start > end)
+    stop("Enter whole starting and ending years from 1 to 9999, with the starting year first.", call. = FALSE)
 
-rcbd_gen_server = function(input, output, session, error_support=NULL) {
-  if(!is.null(error_support)) {
-    observe <- error_support$observe
-    observeEvent <- error_support$observeEvent
-    downloadHandler <- error_support$downloadHandler
+  lines <- function(x) {
+    items <- trimws(strsplit(x, "\r?\n")[[1]])
+    items[nzchar(items)]
   }
-  observeEvent(session$input$rcbd_logout, {
-    session$reload()
-  })
-  
-  # Reactive value to store the generated data frame
-  df_reactive <- reactiveVal(NULL)
-  
-  ############# Instruction appearing in sidebar panel
-  output$experiment_instructions <- renderUI({
-    if (is.null(input$submit_csvgen_rcbd) || input$submit_csvgen_rcbd == 0) {
-      HTML(
-        "<p style='color: blue; font-weight: bold; font-size: 12px; text-align: justify;'>
-        Please fill in the details of your experiment below. Once you provide the required information, a new panel will appear on the right where you can enter your data and download it as a CSV file. This CSV file can then be uploaded in the Analysis tab.
-      </p>"
-      )
-    }
-  })
-  
-  # Observe event for generating the data frame
-  observeEvent(input$submit_csvgen_rcbd, {
-    shiny::validate(
-      need(input$treatment_csv_gen_rcbd != 0, "Warning 1: Please enter the number of subjects correctly, it should be at least one"),
-      need(input$daytime_csv_gen_rcbd != 0, "Warning 2: Please enter the number of day/time points correctly, it should be more than 1"),
-      need(input$response_csv_gen_rcbd != 0, "Warning 3: Please enter the number of variables correctly, it should be at least one")
-    )
+  series <- lines(series)
+  group_name <- trimws(group_name)
+  if (grouped && (!nzchar(group_name) || tolower(group_name) == "year"))
+    stop("Enter a group column name different from Year.", call. = FALSE)
+  if (!length(series) || anyDuplicated(tolower(c("Year", if (grouped) group_name, series))))
+    stop("Enter at least one series name. Year, group and series column names must be distinct.", call. = FALSE)
 
-    # Calculate total observations
-    total_obs <- input$treatment_csv_gen_rcbd * input$daytime_csv_gen_rcbd
+  groups <- if (grouped) lines(groups) else ""
+  if (!length(groups) || anyDuplicated(groups))
+    stop("Enter unique group names, one per line.", call. = FALSE)
 
-    # Create the data frame: Subject, Day/Time, Variables
-    # One-way repeated measures: one row per Subject x Day/Time (no block column)
-    df <- data.frame(
-      Subject = rep(paste0("T", 1:input$treatment_csv_gen_rcbd), each = input$daytime_csv_gen_rcbd),
-      DayTime = rep(paste0("D", 1:input$daytime_csv_gen_rcbd), times = input$treatment_csv_gen_rcbd),
-      stringsAsFactors = FALSE
+  years <- seq.int(start, end)
+  rows <- length(years) * length(groups)
+  if (rows > 10000 || rows * (length(series) + 1L + grouped) > 100000)
+    stop("Use a smaller year range or fewer groups or series. The editor supports up to 10,000 rows and 100,000 cells.", call. = FALSE)
+  df <- data.frame(Year = rep(years, each = length(groups)))
+  if (grouped) df[[group_name]] <- rep(groups, times = length(years))
+  for (name in series) df[[name]] <- rep(NA_real_, rows)
+  list(data = df, series = series, grouped = grouped)
+}
+
+gre_arrange_server <- function(input, output, session, error_support = NULL) {
+  template <- reactiveVal(NULL)
+  values <- reactiveVal(NULL)
+  problem <- reactiveVal(NULL)
+  if (!is.null(error_support)) downloadHandler <- error_support$downloadHandler
+
+  observeEvent(input$gre_arrange_create, {
+    next_template <- tryCatch(
+      gre_arrange_template(input$gre_arrange_start, input$gre_arrange_end,
+        input$gre_arrange_series, isTRUE(input$gre_arrange_grouped),
+        input$gre_arrange_group_name, input$gre_arrange_groups),
+      error = function(e) e
     )
-    
-    
-    for (i in 1:input$response_csv_gen_rcbd) {
-      colname <- paste0("y", i)
-      df[[colname]] <- as.numeric(rep(NA, total_obs))
+    if (inherits(next_template, "error")) {
+      problem(conditionMessage(next_template))
+      return()
     }
-    
-    # Store the data frame in reactive value
-    df_reactive(df)
-    
-    # Text appear above CSV panel
-    output$text_csv_gen_rcbd <- renderUI({
-      HTML(
-        "<p style='font-family: Times New Roman; color: green; font-weight: bold; font-size: 14px; text-align: justify;'> 
-        In the panel below, enter the responses with Subject (identifies Subject groups), Day/Time (day/time column), and observations (y1, y2, etc.). You can type the response directly or copy the data from anywhere including MS Excel by copying and pasting using ctrl+v. Once you are done, click the download button to save the data as a CSV file.
-        </p>"
-      )
-    })
-    
-    # Text appear below download button
-    output$text2_csv_gen_rcbd <- renderUI({
-      HTML(
-        "<p style='font-family: Times New Roman; color: green; font-weight: bold; font-size: 14px; text-align: justify;'> 
-        You can download the CSV file and upload in the analysis tab to perform analysis.
-        </p>"
-      )
-    })
-    
-    output$toggle_rcbd_gen <- renderUI({
-      prettyToggle(
-        inputId = "rcbd_gen_order",
-        label_on = "Sort by Subject-Day/Time",
-        icon_on = icon("sort-up"),
-        status_on = "info",
-        status_off = "warning",
-        label_off = "Sort by Day/Time-Subject",
-        icon_off = icon("sort-down"),
-        value = TRUE
-      )
-    })
+    problem(NULL)
+    values(next_template$data)
+    template(next_template)
   })
-  
-  # Observe event for the toggle and update sorting
-  observeEvent(input$rcbd_gen_order, {
-    if (!is.null(df_reactive())) {
-      df <- df_reactive()
-      
-      # Sort columns correctly
-      df$Subject <- factor(df$Subject, levels = gtools::mixedsort(unique(df$Subject)))
-      df$DayTime <- factor(df$DayTime, levels = gtools::mixedsort(unique(df$DayTime)))
-      
-      # Apply ordering based on input
-      if (isTRUE(input$rcbd_gen_order)) {
-        # Primary sort: Subject, then Day/Time
-        df <- df[order(df$Subject, df$DayTime), ]
-      } else {
-        # Alternative sort: Day/Time, then Subject
-        df <- df[order(df$DayTime, df$Subject), ]
-      }
-      
-      # Convert back to character to avoid sorting arrow issue
-      df$Subject <- as.character(df$Subject)
-      df$DayTime <- as.character(df$DayTime)
-      
-      # Store back into reactive value
-      df_reactive(df)
-    }
+
+  output$gre_arrange_status <- renderUI({
+    if (!is.null(problem())) return(tags$p(class = "text-danger", role = "alert", problem()))
+    spec <- template()
+    if (is.null(spec)) return(tags$p("Create a template to begin."))
+    tags$p(paste(nrow(spec$data), "rows created."),
+           if (spec$grouped) "In Analysis, select Year and your group column before running.")
   })
-  
-  # Render data table using the reactive data frame
-  output$data_entry_table_rcbd <- renderRHandsontable({
-    if (is.null(df_reactive())) {
-      return(NULL)
-    }
-    rhandsontable(df_reactive(), rowHeaders = NULL) %>%
-      hot_col("Subject", readOnly = TRUE, renderer = "
-        function (instance, td, row, col, prop, value, cellProperties) {
-          Handsontable.renderers.TextRenderer.apply(this, arguments);
-          td.style.backgroundColor = '#E8F4FD';
-          td.style.fontWeight = 'bold';
-        }") %>%
-      hot_col("DayTime", readOnly = TRUE, renderer = "
-        function (instance, td, row, col, prop, value, cellProperties) {
-          Handsontable.renderers.TextRenderer.apply(this, arguments);
-          td.style.backgroundColor = '#FFF2CC';
-          td.style.fontWeight = 'bold';
-        }")
+
+  output$gre_arrange_table <- rhandsontable::renderRHandsontable({
+    spec <- template()
+    req(spec)
+    grid <- rhandsontable::rhandsontable(spec$data, rowHeaders = NULL, height = 420, contextMenu = FALSE)
+    for (name in setdiff(names(spec$data), spec$series))
+      grid <- rhandsontable::hot_col(grid, name, readOnly = TRUE)
+    grid
   })
-  
-  # Output for download button
-  output$var_csv_gen_rcbd <- renderUI({
-    if (is.null(df_reactive())) {
-      return(NULL)
-    }
-    div(
-      style = "text-align: center; margin-top: 15px;",
-      downloadButton("download_csvgen_rcbd", "Download CSV file", class = "btn-success")
-    )
+
+  observeEvent(input$gre_arrange_table, {
+    spec <- template()
+    req(spec)
+    edited <- rhandsontable::hot_to_r(input$gre_arrange_table)
+    if (nrow(edited) != nrow(spec$data) || !identical(names(edited), names(spec$data))) return()
+    keys <- setdiff(names(spec$data), spec$series)
+    same_keys <- vapply(keys, function(key) identical(as.character(edited[[key]]),
+                                                    as.character(spec$data[[key]])), logical(1))
+    if (!all(same_keys)) return()
+    data <- spec$data
+    data[spec$series] <- edited[spec$series]
+    values(data)
   })
-  
-  # Download data as CSV file
-  output$download_csvgen_rcbd <- downloadHandler(
-    filename = function() {
-      paste("data_rmanova_", Sys.Date(), ".csv", sep = "")
-    },
-    content = function(file) {
-      data_rbd <- hot_to_r(input$data_entry_table_rcbd)
-      data_rbd[is.na(data_rbd)] <- ""
-      write.csv(data_rbd, file, row.names = FALSE)
-    }
+
+  output$gre_arrange_download_ui <- renderUI({
+    req(template())
+    downloadButton("gre_arrange_csv", "Download CSV", class = "btn-success")
+  })
+  output$gre_arrange_csv <- downloadHandler(
+    filename = function() paste0("growth_data_", Sys.Date(), ".csv"),
+    content = function(file) utils::write.csv(req(values()), file, row.names = FALSE, na = "", fileEncoding = "UTF-8")
   )
 }

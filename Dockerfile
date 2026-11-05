@@ -1,5 +1,7 @@
 FROM rocker/shiny:4.5.2
 
+ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
+
 # System dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \

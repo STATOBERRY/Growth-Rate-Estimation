@@ -77,7 +77,7 @@ ui <- raisins_app_ui(
 )---"))
   ),
   analysis    = gre_ui(),
-  create_data = rcbd_gen_ui(),
+  create_data = gre_arrange_ui(),
   datasets    = rcbd_dataset_ui(),
   user        = invoice_rcbd_ui(),
   view_data   = tagList(

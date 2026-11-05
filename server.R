@@ -21,7 +21,7 @@ server <- function(input, output, session) {
                       demo_select_id = "demo_data_select")
 
   ## Data tools reused from RM-ANOVA
-  rcbd_gen_server(input, output, session, error_support = gre_support)
+  gre_arrange_server(input, output, session, error_support = gre_support)
   rcbd_dataset_server(input, output, session, error_support = gre_support)
 
   ## Shared feedback tab

@@ -286,15 +286,15 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
       ext  <- tolower(tools::file_ext(input$rcbd_file1$name))
       df <- tryCatch(
         if (ext %in% c("xlsx", "xls")) as.data.frame(readxl::read_excel(path))
-        else read.csv(path, check.names = FALSE, stringsAsFactors = FALSE),
+        else gre_read_csv(path),
         error = function(e) {
           error_support$report(e, context = "Data upload",
-            public_message = "The file could not be read. Save it as CSV or Excel (.xlsx / .xls) and upload it again.")
+            public_message = "The file could not be read. Save it as CSV UTF-8 or Excel (.xlsx / .xls) and upload it again.")
           NULL
         })
     } else if (nzchar(input$demo_data_select %||% "")) {
       fp <- file.path("data", input$demo_data_select)
-      if (file.exists(fp)) df <- read.csv(fp, check.names = FALSE, stringsAsFactors = FALSE)
+      if (file.exists(fp)) df <- gre_read_csv(fp)
       else error_support$report("The selected model dataset is unavailable. Choose another dataset.",
                                 context = "Data upload")
     }
@@ -353,19 +353,49 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
   output$gre_group_ui <- renderUI({
     df <- gre_raw(); if (is.null(df)) return(NULL)
     group_cols <- setdiff(names(df), input$gre_year %||% "")
-    district_demo <- is.null(input$rcbd_file1) && identical(input$demo_data_select, "dataset2.csv")
-    prev <- isolate(input$gre_group) %||% ""
+    previous <- isolate(input$gre_group) %||% ""
+    detected <- gre_detect_group(df, input$gre_year %||% "")
+    selected <- if (nzchar(detected)) detected else if (previous %in% group_cols) previous else ""
     tags$div(
+      actionButton("gre_group_help", label = NULL, icon = icon("circle-question"),
+                   class = "btn-link btn-xs", title = "How grouping works",
+                   `aria-label` = "How grouping works", style = "float: right;"),
       pickerInput(
         "gre_group",
-        label = HTML("Group column (optional): <br><small style='font-size: 10px; color: gray;'>(Group identifier column; select only additive series such as area and production)</small>"),
+        label = "Group column (optional)",
         choices = c("No grouping" = "", group_cols),
-        selected = if (district_demo) "District" else if (prev %in% group_cols) prev else "",
+        selected = selected,
         options = pickerOptions(container = "body", title = "No grouping (optional)", size = 6),
         width = "100%"
       ),
       class = "brand-picker3"
     )
+  })
+
+  observeEvent(input$gre_group_help, {
+    showModal(modalDialog(
+      title = "How grouping works",
+      tags$p("Leave Group column blank if your file has one row per year. If it has one row per group in each year, select the column containing the group names or IDs."),
+      tags$table(class = "table table-bordered table-condensed",
+        tags$caption("Model dataset with one row per group per year"),
+        tags$thead(tags$tr(
+          tags$th(scope = "col", "Year"),
+          tags$th(scope = "col", class = "info", "Group"),
+          tags$th(scope = "col", "Count")
+        )),
+        tags$tbody(
+          tags$tr(tags$td("2023"), tags$td(class = "info", "A"), tags$td("30")),
+          tags$tr(tags$td("2023"), tags$td(class = "info", "B"), tags$td("50")),
+          tags$tr(tags$td("2024"), tags$td(class = "info", "A"), tags$td("40")),
+          tags$tr(tags$td("2024"), tags$td(class = "info", "B"), tags$td("60"))
+        )
+      ),
+      tags$p("Select ", tags$strong("Year"), " as the year column, ", tags$strong("Group"),
+             " as the group column, and ", tags$strong("Count"), " as the series. ",
+             "The combined counts are 80 for 2023 and 100 for 2024."),
+      tags$p("Add counts or amounts that represent distinct groups. For rates, percentages, or averages, supply an annual series calculated from the underlying totals or with the appropriate weights."),
+      easyClose = TRUE, footer = modalButton("Close")
+    ))
   })
 
   ## -- guided picker walk-through (as in RBD): Year -> Series, then stop ------
@@ -575,9 +605,14 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
     table <- kableExtra::kable_styling(table, bootstrap_options = "bordered",
                                        full_width = FALSE, position = "center")
     table <- kableExtra::kable_classic(table, full_width = FALSE, html_font = font)
+    formulas <- gre_table_math(key)
+    if (key %in% c("growth", "group")) formulas <- c(formulas, gre_table_math("diagnostics"))
     htmltools::attachDependencies(
       tagList(div(style = "overflow-x: auto;", HTML(as.character(table))),
-              tags$p(class = "text-muted", tags$small(tags$strong("Note. "), gre_table_note(key, res()$alpha)))),
+              tags$p(class = "text-muted", tags$small(tags$strong("Note. "), gre_table_note(key, res()$alpha))),
+              if (length(formulas))
+                shiny::withMathJax(tags$div(tags$strong("Formulas used"),
+                  lapply(formulas, function(eq) tags$div(style = "overflow-x: auto;", paste0("\\[", eq, "\\]")))))),
       kableExtra::html_dependency_lightable()
     )
   }
@@ -797,9 +832,10 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
   })
   output$gre_decomp_table <- renderUI({
     r <- res()
+    notice <- function(message) div(class = "well well-sm text-muted", role = "status", message)
     if (is.null(r$decomp))
-      return(tags$p(r$decomp_msg %||% "Enable decomposition and provide Area and Production columns."))
-    tagList(result_table(r$decomp, "decomp"), if (!is.null(r$decomp_msg)) tags$p(r$decomp_msg))
+      return(notice(r$decomp_msg %||% "Select Area-Yield decomposition and run the analysis. Your file needs numeric Area and Production columns."))
+    tagList(result_table(r$decomp, "decomp"), if (!is.null(r$decomp_msg)) notice(r$decomp_msg))
   })
 
   ## -- Interpretation tab (RBD's RAISINS Assistant flow) ---------------------
@@ -1053,7 +1089,7 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
             selected = if (is.null(prev_sections)) intersect(c("interp", "plot"), names(sections)) else intersect(prev_sections, names(sections)),
             width = "100%"))),
       div(class = "stat-report-export",
-        radioButtons("gre_report_format", "Document format", c("HTML", "PDF", "Word"),
+        radioButtons("gre_report_format", "Document format", c("HTML", "PDF", "Word", "Excel"),
                      inline = TRUE, selected = isolate(input$gre_report_format) %||% "HTML"),
         uiOutput("gre_report_download_ui"))
     )
@@ -1064,99 +1100,135 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
     downloadButton("gre_download_report", "Download statistical report", class = "btn-success")
   })
 
+  export_report <- function(file, format, title, keep, secs, tab = NULL) {
+    showModal(modalDialog(
+      title = "Downloading please wait...",
+      tags$img(
+        src = "https://firebasestorage.googleapis.com/v0/b/raisins-2025.firebasestorage.app/o/RAISINS_CRD%2Fdownload.gif?alt=media",
+        style = "display: block; margin: 0 auto; width: 80%; height: auto;"
+      ),
+      footer = NULL
+    ))
+    on.exit(removeModal())
+    r <- res()
+    # Leave out what the user unticked; the Rmd skips NULL tables.
+    for (k in setdiff(names(gre_report_tables), keep)) r[k] <- list(NULL)
+    findings <- gre_report_findings(r, input$gre_digits %||% 3L)
+    if (identical(tab, "interpretation")) {
+      r$interp <- res()$interp
+    } else if ("interp" %in% secs && length(intersect(keep, names(gre_report_tables)))) {
+      r$interp <- gre_interpretation_text(c(r[setdiff(names(r), "trend_fits")], list(
+        year = r$raw[[r$year_col]], trend_fits = if ("trend" %in% keep) r$trend_fits else list())))
+    } else r$interp <- NULL
+    font  <- raisins_font_value(input$gre_font %||% "cambria")
+    style <- raisins_tstyle_value(input$gre_table_style)
+    # As in RBD: PDF via xelatex with the chosen font's twin (www/fonts);
+    # Word gets font and table style applied to the .docx after rendering.
+    header <- input$gre_header_mode %||% "default"
+    logo_alignment <- match.arg(input$gre_logo_alignment %||% "center", c("left", "center", "right"))
+    td <- tempfile("gre-report-")
+    dir.create(td)
+    on.exit(unlink(td, recursive = TRUE), add = TRUE)
+    logo <- if (format != "Excel" && header == "custom") tryCatch(
+      gre_report_logo(input$gre_header_logo, td),
+      error = function(e) {
+        showNotification(conditionMessage(e), type = "error")
+        stop(e)
+      })
+    source_default <- if (!is.null(input$rcbd_file1)) input$rcbd_file1$name else
+      paste("Bundled example", input$demo_data_select %||% "")
+    metadata <- data.frame(Item = c("Data source", "Units", "Known changes in coverage or definitions"),
+      Detail = c(gre_report_text(input$gre_report_source, source_default),
+                 gre_report_text(input$gre_report_units, "Not supplied"),
+                 gre_report_text(input$gre_report_changes, "Not supplied")))
+    quality <- rbind(metadata, r$quality)
+    fmt <- switch(format,
+                  HTML = rmarkdown::html_document(df_print = "kable"),
+                  Word = rmarkdown::word_document(reference_docx = if (header == "default" && file.exists("styles.docx"))
+                    normalizePath("styles.docx", winslash = "/") else "default"),
+                  PDF  = rmarkdown::pdf_document(
+                    latex_engine = "xelatex",
+                    pandoc_args  = raisins_font_pdf_args(font, normalizePath("www/fonts", winslash = "/"))))
+    # The report uses the trend plot exactly as customised in its workspace.
+    plot_path <- NA
+    if ("plot" %in% secs && length(r$trend_fits)) {
+      plot_path <- file.path(td, "gre_trend.png")
+      ggplot2::ggsave(plot_path, gre_trend_plot_obj(), width = 8, height = 5, dpi = 150, bg = "white")
+    }
+    extra_figures <- list()
+    for (key in intersect(c("publication", "exploration"), secs)) {
+      plot <- tryCatch(if (key == "publication") publication_plot() else explore_plot(),
+                       shiny.silent.error = function(e) NULL)
+      if (is.null(plot)) {
+        showNotification(paste("The", key, "figure was unavailable and was omitted."), type = "warning")
+        next
+      }
+      path <- file.path(td, paste0(key, ".png"))
+      ggplot2::ggsave(path, plot, width = 8, height = 5, dpi = 200, bg = "white")
+      extra_figures[[key]] <- path
+    }
+    if (format == "Excel") {
+      tables <- r[intersect(keep, names(gre_report_tables))]
+      tables <- Filter(Negate(is.null), tables)
+      if (identical(tab, "plots")) tables$annual_data <- r$raw[c(r$year_col, r$series)]
+      if (!is.null(r$interp))
+        tables$interpretation <- data.frame(Interpretation = strsplit(r$interp, "\n\n", fixed = TRUE)[[1]])
+      gre_export_xlsx(file, tables, quality, c(trend = plot_path, unlist(extra_figures)),
+                     style, as.integer(input$gre_digits %||% 3L), r$alpha, title)
+      return(invisible(NULL))
+    }
+    file.copy("growth_rate_report.Rmd", file.path(td, "growth_rate_report.Rmd"), overwrite = TRUE)
+    out <- rmarkdown::render(
+      input = file.path(td, "growth_rate_report.Rmd"),
+      output_format = fmt,
+      params = list(
+        report_title = title, table_style = style,
+        font        = font,
+        digits      = as.integer(input$gre_digits %||% 3L),
+        growth = r$growth, trend = r$trend, mk = r$mk,
+        instab = r$instab, decomp = r$decomp, group_comparison = r$group_comparison, quality = quality,
+        header_text = switch(header, custom = gre_report_text(input$gre_header_text, ""),
+                             default = if (format != "Word") "Statoberry" else "",
+                             ""),
+        logo_path = logo, logo_alignment = logo_alignment,
+        interp = r$interp, plot_path = plot_path, extra_figures = extra_figures,
+        findings = findings, alpha = r$alpha),
+      envir = new.env(parent = globalenv()), quiet = TRUE)
+    if (identical(format, "Word")) {
+      raisins_font_docx(out, font)
+      raisins_tstyle_docx(out, style)
+      if (!is.null(logo)) gre_align_word_logo(out, td, logo_alignment)
+    }
+    if (!file.copy(out, file, overwrite = TRUE)) stop("Could not write the report download.")
+  }
+
+  extension <- function(format) switch(format, PDF = "pdf", Word = "docx", Excel = "xlsx", "html")
   output$gre_download_report <- downloadHandler(
-    filename = function()
-      paste0("RAISINS_GRE_report_", Sys.Date(), ".",
-             switch(input$gre_report_format, PDF = "pdf", Word = "docx", "html")),
-    content = function(file) {
-      showModal(modalDialog(
-        title = "Downloading please wait...",
-        tags$img(
-          src = "https://firebasestorage.googleapis.com/v0/b/raisins-2025.firebasestorage.app/o/RAISINS_CRD%2Fdownload.gif?alt=media",
-          style = "display: block; margin: 0 auto; width: 80%; height: auto;"
-        ),
-        footer = NULL
-      ))
-      on.exit(removeModal())
-      r <- res()
-      # Leave out what the user unticked; the Rmd skips NULL tables.
-      keep <- input$gre_report_tables %||% character(0)
-      for (k in setdiff(names(gre_report_tables), keep)) r[k] <- list(NULL)
-      secs <- input$gre_report_sections %||% character(0)
-      findings <- gre_report_findings(r, input$gre_digits %||% 3L)
-      if ("interp" %in% secs && length(intersect(keep, names(gre_report_tables)))) {
-        r$interp <- gre_interpretation_text(c(r[setdiff(names(r), "trend_fits")], list(
-          year = r$raw[[r$year_col]], trend_fits = if ("trend" %in% keep) r$trend_fits else list())))
-      } else r$interp <- NULL
-      font  <- raisins_font_value(input$gre_font %||% "cambria")
-      style <- raisins_tstyle_value(input$gre_table_style)
-      # As in RBD: PDF via xelatex with the chosen font's twin (www/fonts);
-      # Word gets font and table style applied to the .docx after rendering.
-      header <- input$gre_header_mode %||% "default"
-      td <- tempfile("gre-report-")
-      dir.create(td)
-      on.exit(unlink(td, recursive = TRUE), add = TRUE)
-      logo <- if (header == "custom") tryCatch(
-        gre_report_logo(input$gre_header_logo, td),
-        error = function(e) {
-          showNotification(conditionMessage(e), type = "error")
-          stop(e)
-        })
-      source_default <- if (!is.null(input$rcbd_file1)) input$rcbd_file1$name else
-        paste("Bundled example", input$demo_data_select %||% "")
-      metadata <- data.frame(Item = c("Data source", "Units", "Known boundary or definition changes"),
-        Detail = c(gre_report_text(input$gre_report_source, source_default),
-                   gre_report_text(input$gre_report_units, "Not supplied"),
-                   gre_report_text(input$gre_report_changes, "Not supplied")))
-      quality <- rbind(metadata, r$quality)
-      fmt <- switch(input$gre_report_format,
-                    HTML = rmarkdown::html_document(df_print = "kable"),
-                    Word = rmarkdown::word_document(reference_docx = if (header == "default" && file.exists("styles.docx"))
-                      normalizePath("styles.docx", winslash = "/") else "default"),
-                    PDF  = rmarkdown::pdf_document(
-                      latex_engine = "xelatex",
-                      pandoc_args  = raisins_font_pdf_args(font, normalizePath("www/fonts", winslash = "/"))))
-      file.copy("growth_rate_report.Rmd", file.path(td, "growth_rate_report.Rmd"), overwrite = TRUE)
-      # The report uses the trend plot exactly as customised in its workspace.
-      plot_path <- NA
-      if ("plot" %in% secs && length(r$trend_fits)) {
-        plot_path <- file.path(td, "gre_trend.png")
-        ggplot2::ggsave(plot_path, gre_trend_plot_obj(), width = 8, height = 5, dpi = 150, bg = "white")
-      }
-      extra_figures <- list()
-      for (key in intersect(c("publication", "exploration"), secs)) {
-        plot <- tryCatch(if (key == "publication") publication_plot() else explore_plot(),
-                         shiny.silent.error = function(e) NULL)
-        if (is.null(plot)) {
-          showNotification(paste("The", key, "figure was unavailable and was omitted."), type = "warning")
-          next
-        }
-        path <- file.path(td, paste0(key, ".png"))
-        ggplot2::ggsave(path, plot, width = 8, height = 5, dpi = 200, bg = "white")
-        extra_figures[[key]] <- path
-      }
-      out <- rmarkdown::render(
-        input = file.path(td, "growth_rate_report.Rmd"),
-        output_format = fmt,
-        params = list(
-          table_style = style,
-          font        = font,
-          digits      = as.integer(input$gre_digits %||% 3L),
-          growth = r$growth, trend = r$trend, mk = r$mk,
-          instab = r$instab, decomp = r$decomp, group_comparison = r$group_comparison, quality = quality,
-          header_text = switch(header, custom = gre_report_text(input$gre_header_text, ""),
-                               default = if (input$gre_report_format != "Word") "Statoberry" else "",
-                               ""),
-          logo_path = logo,
-          interp = r$interp, plot_path = plot_path, extra_figures = extra_figures,
-          findings = findings, alpha = r$alpha),
-        envir = new.env(parent = globalenv()), quiet = TRUE)
-      if (identical(input$gre_report_format, "Word")) {
-        raisins_font_docx(out, font)
-        raisins_tstyle_docx(out, style)
-      }
-      file.copy(out, file, overwrite = TRUE)
-    })
+    filename = function() paste0("RAISINS_GRE_report_", Sys.Date(), ".",
+                                 extension(input$gre_report_format %||% "HTML")),
+    content = function(file) export_report(file, input$gre_report_format %||% "HTML",
+      gre_report_text(input$gre_report_title, "Growth Rate and Trend Analysis Report"), input$gre_report_tables %||% character(),
+      input$gre_report_sections %||% character())
+  )
+
+  tab_exports <- list(
+    growth = list(title = "Growth Rates", tables = "growth"),
+    trend = list(title = "Trend", tables = c("trend", "mk")),
+    instability = list(title = "Instability and Decomposition", tables = c("instab", "decomp")),
+    groups = list(title = "Group Comparison", tables = "group_comparison"),
+    plots = list(title = "Plots and Graphs", sections = c("plot", "publication", "exploration")),
+    quality = list(title = "Data Quality"),
+    interpretation = list(title = "Interpretation", sections = "interp")
+  )
+  for (tab in names(tab_exports)) local({
+    key <- tab
+    spec <- tab_exports[[key]]
+    format <- function() input[[paste0("gre_format_", key)]] %||% "HTML"
+    output[[paste0("gre_download_", key)]] <- downloadHandler(
+      filename = function() paste0("RAISINS_GRE_", key, "_", Sys.Date(), ".", extension(format())),
+      content = function(file) export_report(file, format(), spec$title,
+        spec$tables %||% character(), spec$sections %||% character(), tab = key))
+  })
 
   # Shared with the invoice / Arrange Data / Datasets servers, like RBD.
   error_support
@@ -1272,6 +1344,36 @@ gre_support_user_details <- function(user, user_info, users, verified_demo_email
 
 ## Time-series data checks, in the list shape greyskull::raisins_check_boxes() draws:
 ## list(issues = list(list(title, entries, action)), valid, skipped, blocked).
+gre_read_csv <- function(path) {
+  data <- utils::read.csv(path, encoding = "UTF-8", check.names = FALSE, stringsAsFactors = FALSE)
+  names(data) <- sub("^\uFEFF", "", names(data))
+  valid <- function(x) all(is.na(x) | validUTF8(x))
+  if (!valid(names(data)) || !all(vapply(Filter(is.character, data), valid, logical(1))))
+    stop("The file contains invalid UTF-8 text. Save it as CSV UTF-8 or upload an Excel copy.")
+  data
+}
+
+gre_align_word_logo <- function(path, directory, alignment) {
+  unpacked <- file.path(directory, "word-package")
+  dir.create(unpacked)
+  utils::unzip(path, exdir = unpacked)
+  document <- file.path(unpacked, "word", "document.xml")
+  xml <- xml2::read_xml(document)
+  ns <- xml2::xml_ns(xml)
+  paragraph <- xml2::xml_find_first(xml, "(//w:body/w:p[w:r/w:drawing])[1]", ns)
+  if (inherits(paragraph, "xml_missing")) stop("Could not locate the report logo in the Word document.")
+  properties <- xml2::xml_find_first(paragraph, "w:pPr", ns)
+  if (inherits(properties, "xml_missing")) properties <- xml2::xml_add_child(paragraph, "w:pPr", .where = 0)
+  justify <- xml2::xml_find_first(properties, "w:jc", ns)
+  if (inherits(justify, "xml_missing")) justify <- xml2::xml_add_child(properties, "w:jc")
+  xml2::xml_set_attr(justify, "w:val", alignment)
+  xml2::write_xml(xml, document)
+  updated <- file.path(directory, "aligned.docx")
+  zip::zipr(updated, list.files(unpacked, all.files = TRUE, no.. = TRUE),
+            root = unpacked, include_directories = FALSE)
+  if (!file.copy(updated, path, overwrite = TRUE)) stop("Could not save the Word logo alignment.")
+}
+
 gre_report_text <- function(value, fallback) {
   if (is.null(value) || !nzchar(trimws(value))) return(fallback)
   substr(trimws(gsub("[[:cntrl:]]+", " ", value)), 1, 2000)
@@ -1433,6 +1535,27 @@ gre_table_cells <- function(d, digits) {
     d[[nm]][!is.finite(x)] <- "—"
   }
   d
+}
+
+gre_detect_group <- function(df, year_col) {
+  if (!year_col %in% names(df)) return("")
+  year <- suppressWarnings(as.numeric(as.character(df[[year_col]])))
+  if (any(!is.finite(year)) || !anyDuplicated(year)) return("")
+  candidates <- setdiff(names(df), year_col)
+  named <- grepl("(^|[^a-z])(group|district|region)([^a-z]|$)",
+                 tolower(candidates))
+  categorical <- vapply(df[candidates], function(x) is.character(x) || is.factor(x), logical(1))
+  eligible <- candidates[named | categorical]
+  valid <- eligible[vapply(eligible, function(name) {
+    group <- trimws(as.character(df[[name]]))
+    if (anyNA(group) || any(!nzchar(group))) return(FALSE)
+    n_groups <- length(unique(group))
+    n_groups > 1L && nrow(df) == length(unique(year)) * n_groups &&
+      !anyDuplicated(data.frame(year, group))
+  }, logical(1))]
+  preferred <- intersect(valid, candidates[named])
+  if (length(preferred) == 1L) return(preferred)
+  if (length(valid) == 1L) valid else ""
 }
 
 gre_data_checks <- function(df, year_col, series, group_col = "") {
@@ -1917,13 +2040,118 @@ gre_tour_server <- function(input, session, current_subscriber) {
     }
   })
 }
+gre_table_math <- function(key) {
+  growth <- c(
+    r"(\ln y_t = a + bt + \varepsilon_t, \qquad \mathrm{CGR}(\%)=100(e^b-1))",
+    r"(\mathrm{CI}_{b}=b\pm t_{1-\alpha/2,n-2}\,\mathrm{SE}(b),\qquad t_{\mathrm{obs}}=\frac{b}{\mathrm{SE}(b)})",
+    r"(\mathrm{CI}_{\mathrm{CGR}}=\left[100(e^{b_{\mathrm{lo}}}-1),\;100(e^{b_{\mathrm{hi}}}-1)\right])",
+    r"(\mathrm{CAGR}(\%)=100\left[\left(\frac{y_{\mathrm{last}}}{y_{\mathrm{first}}}\right)^{1/(t_{\mathrm{last}}-t_{\mathrm{first}})}-1\right])",
+    r"(\text{Average annual change }(\%)=\frac{100}{|\mathcal A|}\sum_{t\in\mathcal A}\frac{y_t-y_{t-1}}{y_{t-1}})",
+    r"(\mathcal A=\{t:\;y_{t-1}>0,\;y_t\ge 0,\;\text{both adjacent years observed}\})"
+  )
+  switch(key,
+    growth = growth,
+    diagnostics = r"(r_1=\operatorname{cor}(e_{t-1},e_t)\quad\text{over adjacent calendar years})",
+    trend = c(
+      r"(\begin{aligned}\text{Linear: }&a+bt\\\text{Quadratic: }&a+bt+ct^2\\\text{Cubic: }&a+bt+ct^2+dt^3\\\text{Exponential: }&\ln y_t=a+bt+\varepsilon_t\end{aligned})",
+      r"(\mathrm{AICc}=-2\ln L+2k+\frac{2k(k+1)}{n-k-1})",
+      r"(\ln L_{\mathrm{original}}=\ln L_{\log}-\sum_t \ln y_t\quad\text{for the exponential fit})"
+    ),
+    mk = c(
+      r"(S=\sum_{i<j}\operatorname{sgn}(y_j-y_i),\qquad \tau_b=\frac{S}{\sqrt{NU}})",
+      r"(\operatorname{Var}(S)=\frac{n(n-1)(2n+5)-\sum_g m_g(m_g-1)(2m_g+5)}{18})",
+      r"(Z=\begin{cases}\frac{S-\operatorname{sgn}(S)}{\sqrt{\operatorname{Var}(S)}}& S\ne0\\0&S=0\end{cases},\qquad p_{\mathrm{approx}}=2\Phi(-|Z|))",
+      r"(\widehat\beta_{\mathrm{Sen}}=\operatorname{median}_{i<j}\left(\frac{y_j-y_i}{t_j-t_i}\right))",
+      r"(C=z_{1-\alpha/2}\sqrt{\operatorname{Var}(S)},\qquad M_1=\left\lceil\frac{N-C}{2}\right\rceil,\quad M_2=\left\lfloor\frac{N+C}{2}\right\rfloor+1)"
+    ),
+    instab = r"(\mathrm{CV}(\%)=100\frac{s}{\bar y},\qquad \mathrm{CDVI}(\%)=\mathrm{CV}\sqrt{1-R^2_{\mathrm{adj,\ bounded}}})",
+    decomp = c(r"(Y=\frac{P}{A},\qquad \Delta P=Y_0\Delta A+A_0\Delta Y+\Delta A\Delta Y)",
+               r"(\text{Share}(\%)=100\frac{\text{contribution}}{\Delta P})"),
+    group = c(r"(Y_{\mathrm{combined},t}=\frac{\sum_g P_{g,t}}{\sum_g A_{g,t}})", growth),
+    character()
+  )
+}
+
+gre_table_formulas <- function(key) {
+  growth <- c("Log-linear model: ln(y) = a + b t + error, with t in years.",
+              "CGR (%) = 100 [exp(b) - 1]. Transform both slope limits b +/- t* SE(b), with n - 2 degrees of freedom.",
+              "CGR p-value = two-sided t-test of the slope, using t = b / SE(b).",
+              "CAGR (%) = 100 [(last value / first value)^(1 / elapsed years) - 1].",
+              "Average annual change (%) = mean of 100 (current - previous) / previous over eligible adjacent years.")
+  switch(key,
+    growth = growth,
+    diagnostics = "Lag-1 residual r = Pearson correlation of residuals from adjacent calendar years.",
+    trend = c("Linear: a + b t. Quadratic: a + b t + c t^2. Cubic: a + b t + c t^2 + d t^3. Exponential: ln(y) = a + b t + error.",
+              "AICc = -2 log L + 2k + 2k(k + 1)/(n - k - 1), with n observations and k parameters including variance. For the exponential model, log L on the observed scale equals log L on the log scale minus sum[ln(y)]."),
+    mk = c("S = sum of sign(y[j] - y[i]) over i < j. Tau-b = S / sqrt(N U), with N total pairs and U pairs untied in value.",
+           "Var(S) = {n(n - 1)(2n + 5) - sum[m(m - 1)(2m + 5)]}/18, with m the size of each tie group.",
+           "Z = [S - sign(S)] / sqrt(Var(S)) when S is nonzero, and 0 otherwise. Approximate two-sided p = 2 Phi(-abs(Z)). For fewer than 10 observations without ties, the exact test is used.",
+           "Sen's slope = median of (y[j] - y[i]) / (year[j] - year[i]) over i < j.",
+           "Sen interval: let C = z* sqrt(Var(S)), where z* is the two-sided normal critical value. Take the ordered slopes at ranks ceil((N - C)/2) and floor((N + C)/2) + 1 when those ranks exist."),
+    instab = c("CV (%) = 100 x sample standard deviation / mean.",
+               "CDVI (%) = CV x sqrt(1 - R2adj), where R2adj is the linear trend's adjusted R-squared bounded between 0 and 1."),
+    decomp = c("Yield = production / area. Changes are end minus start.",
+               "Area effect = starting yield x area change. Yield effect = starting area x yield change. Interaction = area change x yield change.",
+               "Total production change = area effect + yield effect + interaction.",
+               "Share (%) = 100 x contribution / total production change."),
+    group = c("Combined yield = sum of production / sum of area within each year.", growth),
+    character()
+  )
+}
+
+gre_export_xlsx <- function(file, tables, quality, figures, style, digits, alpha, title) {
+  wb <- openxlsx::createWorkbook(title = title)
+  labels <- c(growth = "Growth rates", trend = "Trend models", mk = "Trend test",
+              instab = "Instability", decomp = "Decomposition", group_comparison = "Group comparison",
+              annual_data = "Annual data", interpretation = "Interpretation", quality = "Data quality")
+  keys <- c(growth = "growth", trend = "trend", mk = "mk", instab = "instab",
+            decomp = "decomp", group_comparison = "group", quality = "quality")
+  tables$quality <- quality
+  for (name in names(tables)) {
+    d <- tables[[name]]
+    sheet <- labels[[name]]
+    openxlsx::addWorksheet(wb, sheet)
+    openxlsx::writeData(wb, sheet, d)
+    raisins_tstyle_xlsx(wb, sheet, nrow = nrow(d) + 1L, ncol = ncol(d), style = style)
+    openxlsx::freezePane(wb, sheet, firstRow = TRUE)
+    numbers <- which(vapply(d, is.numeric, logical(1)) &
+      !names(d) %in% c("Start year", "End year", "Observations", "Lag pairs", "S", "CGR p", "p-value"))
+    if (length(numbers) && nrow(d) && !identical(name, "annual_data")) {
+      format <- if (digits > 0) paste0("0.", strrep("0", digits)) else "0"
+      openxlsx::addStyle(wb, sheet, openxlsx::createStyle(numFmt = format),
+                         rows = seq_len(nrow(d)) + 1L, cols = numbers, gridExpand = TRUE, stack = TRUE)
+    }
+    if (name %in% names(keys)) {
+      key <- keys[[name]]
+      formulas <- gre_table_formulas(key)
+      if (key %in% c("growth", "group")) formulas <- c(formulas, gre_table_formulas("diagnostics"))
+      notes <- c(paste("Note.", gre_table_note(key, alpha)),
+                 if (length(formulas)) c("Formulas used", formulas))
+      openxlsx::writeData(wb, sheet, notes, startRow = nrow(d) + 3L, colNames = FALSE)
+    }
+    openxlsx::setColWidths(wb, sheet, seq_len(ncol(d)), widths = if (name == "interpretation") 100 else 19)
+    if (name %in% c("quality", "interpretation")) {
+      column <- if (name == "quality") 2L else 1L
+      openxlsx::setColWidths(wb, sheet, column, widths = 95)
+      openxlsx::addStyle(wb, sheet, openxlsx::createStyle(wrapText = TRUE, valign = "top"),
+                         rows = seq_len(nrow(d)) + 1L, cols = column, stack = TRUE)
+    }
+  }
+  for (name in names(figures)[!is.na(figures)]) {
+    sheet <- paste("Figure", name)
+    openxlsx::addWorksheet(wb, sheet)
+    openxlsx::insertImage(wb, sheet, figures[[name]], width = 8, height = 5)
+  }
+  openxlsx::saveWorkbook(wb, file, overwrite = TRUE)
+}
+
 gre_table_note <- function(key, alpha) {
   level <- paste0(100 * (1 - alpha), "%")
   switch(key,
     growth = paste(level, "CGR intervals and p-values assume independent, constant-variance normal errors on the log scale. CAGR uses the observed endpoints. Average annual change uses adjacent calendar years."),
     diagnostics = "Lag-1 r is the descriptive correlation of log-scale residuals in adjacent calendar years. Lag pairs is the number of pairs available for that calculation.",
-    trend = "Lower AICc is preferred among eligible fits on the original response scale. A dash indicates an unavailable criterion.",
-    mk = paste("Tau-b adjusts for ties. Sen's slope is in series units per year. The", level,
+    trend = "Lower AICc is preferred among eligible fits on the original response scale. Here n is the number of observations and k counts all fitted parameters, including variance. A dash indicates an unavailable criterion.",
+    mk = paste("Tau-b adjusts for ties. N counts all pairs, U counts untied pairs, and m is a tie-group size. The Sen interval uses the ordered slopes at the two stated ranks. Sen's slope is in series units per year. The", level,
                "interval and the p-value assume independent observations. P-values are unadjusted across series."),
     instab = "CV is the coefficient of variation. CDVI adjusts CV using the fitted linear trend. Both require nonnegative observations and a positive mean.",
     decomp = "Shares use total endpoint production change as the denominator and are undefined when it is zero. Offsetting contributions can yield negative shares or shares above 100%.",
