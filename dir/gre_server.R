@@ -1302,6 +1302,17 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
         spec$tables %||% character(), spec$sections %||% character(), tab = key))
   })
 
+  ## RA-One chat (as in fsQCA)----
+  chat_server(
+    id             = "gre_chat",
+    context        = gre_chat_context(res),
+    user_rv        = current_subscriber,
+    plan_rv        = reactive(auth$user_info$comment),
+    email_rv       = current_subscriber,
+    parent_session = session,
+    error_support  = error_support
+  )
+
   # Shared with the invoice / Arrange Data / Datasets servers, like RBD.
   error_support
 }
@@ -1861,6 +1872,7 @@ gre_tour_steps <- function() {
       NA,
       "a[data-value='Datasets']",
       "a[data-value='Arrange Data']",
+      "a[data-value='RA-One']",
       "a[data-value='Feedback']",
       "a[data-value='User']",
       "a[data-value='retake_tour']",
@@ -1910,6 +1922,14 @@ gre_tour_steps <- function() {
         "This tab allows you to <b>create a dataset template directly in RAISINS</b>.<br><br>",
         "You can then <b>enter values manually</b> or <b>paste data from a spreadsheet</b>, ",
         "and <b>download it as a CSV file</b> that can be uploaded for analysis."
+      ),
+      # RA-One
+      paste0(
+        "<b>&#129302; RA-One</b><br><br>",
+        "This tab provides access to the <b>RAISINS AI Assistant</b>. It is available on institutional plans.<br><br>",
+        "You can <b>ask questions</b> about <b>data preparation</b>, <b>growth rates</b>, ",
+        "<b>trend tests</b> and <b>interpretation of results</b>.<br><br>",
+        "For best results, <b>complete your analysis first</b>, so the assistant can use your results."
       ),
       # Feedback
       paste0(

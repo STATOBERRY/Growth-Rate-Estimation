@@ -3,10 +3,10 @@
 # File: chat_ui.R
 #
 # Drop into any tab:
-#   tabPanel("AI Chat", icon = icon("comments"), chat_ui("rcbd_chat"))
+#   tabPanel("RA-One", icon = icon("rocketchat"), chat_ui("gre_chat"))
 #
 # Server:
-#   chat_server("rcbd_chat",
+#   chat_server("gre_chat",
 #     context = reactive({ paste("Results:", your_results()) }),
 #     api_key = Sys.getenv("OPENAI_API_KEY")
 #   )
@@ -52,7 +52,7 @@ chat_ui <- function(id) {
   overflow: hidden;
 }
 
-/* ── SIDEBAR ─────────────────────────────────────────────────── */
+/* -- SIDEBAR --------------------------------------------------- */
 #", ns("sidebar"), " {
   width: var(--sidebar-w);
   min-width: var(--sidebar-w);
@@ -155,7 +155,7 @@ chat_ui <- function(id) {
 @keyframes ctxPulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 .rch-ctx-off { font-size: 11.5px; color: var(--inv2); text-align: center; padding: 4px 0; }
 
-/* ── CANVAS ──────────────────────────────────────────────────── */
+/* -- CANVAS ---------------------------------------------------- */
 #", ns("canvas"), " {
   flex: 1; display: flex; flex-direction: column;
   background: var(--canvas); overflow: hidden; min-width: 0;
@@ -178,7 +178,7 @@ chat_ui <- function(id) {
   background: #560466; display: inline-block;
 }
 
-/* ── Scroll area ── */
+/* -- Scroll area -- */
 #", ns("msg-scroll"), " { flex:1; overflow-y:auto; scroll-behavior:smooth; }
 #", ns("msg-scroll"), "::-webkit-scrollbar { width:6px; }
 #", ns("msg-scroll"), "::-webkit-scrollbar-track { background:transparent; }
@@ -191,7 +191,7 @@ chat_ui <- function(id) {
   display: flex; flex-direction: column; gap: 0;
 }
 
-/* ── Welcome screen ── */
+/* -- Welcome screen -- */
 #", ns("welcome"), " {
   max-width: 580px; margin: 0 auto;
   padding: 56px 24px 24px; text-align: center;
@@ -231,7 +231,7 @@ chat_ui <- function(id) {
   margin-bottom: 2px; font-size: 13px;
 }
 
-/* ── Message rows ── */
+/* -- Message rows -- */
 .rch-row {
   display: flex; gap: 14px; padding: 18px 0;
   align-items: flex-start; border-bottom: 1px solid transparent;
@@ -293,10 +293,8 @@ chat_ui <- function(id) {
 .rch-typing span:nth-child(3) { animation-delay:.4s; }
 @keyframes rchDot { 0%,60%,100%{opacity:.2;transform:scale(.85)} 30%{opacity:1;transform:scale(1.2)} }
 
-", rcbd_ai_plot_css(), "
-", crd_table_css(), "
 
-/* ── INPUT BAR ───────────────────────────────────────────────── */
+/* -- INPUT BAR ------------------------------------------------- */
 #", ns("input-area"), " {
   padding: 14px 24px 18px;
   background: var(--canvas);
@@ -365,7 +363,7 @@ chat_ui <- function(id) {
   font-size: 11.5px; color: var(--txt3); text-align: center;
 }
 
-/* ── Responsive ── */
+/* -- Responsive -- */
 @media (max-width:900px) { #", ns("sidebar"), " { display:none; } }
 @media (max-width:600px) {
   #", ns("msg-inner"), ", #", ns("input-pill"), " { padding-left:12px; padding-right:12px; }
@@ -375,7 +373,7 @@ chat_ui <- function(id) {
   
   tagList(
     
-    # ── Fonts ────────────────────────────────────────────────────────────────
+    # -- Fonts ----------------------------------------------------------------
     tags$head(
       tags$link(rel = "stylesheet",
                 href = "https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"),
@@ -388,7 +386,7 @@ chat_ui <- function(id) {
       tags$style(HTML(css))
     ),
     
-    # ── Shell ────────────────────────────────────────────────────────────────
+    # -- Shell ----------------------------------------------------------------
     div(id = ns("wrap"),
         
         # ======= SIDEBAR =====================================================
@@ -471,7 +469,7 @@ chat_ui <- function(id) {
         ) # /canvas
     ),  # /wrap
     
-    # ── JS ───────────────────────────────────────────────────────────────────
+    # -- JS -------------------------------------------------------------------
     tags$script(HTML(paste0("
 (function () {
   var NS = '", ns(""), "';
@@ -482,7 +480,7 @@ chat_ui <- function(id) {
     this.style.height = Math.min(this.scrollHeight, 200) + 'px';
   });
 
-  /* ── Send helper: reads textarea value and bundles it into one event ── */
+  /* -- Send helper: reads textarea value and bundles it into one event -- */
   function doSend() {
     var ta = document.getElementById(NS + 'user_input');
     if (!ta) return;
@@ -510,29 +508,23 @@ chat_ui <- function(id) {
     doSend();
   });
 
-  /* Auto-scroll - but only when the user is already parked at the bottom.
-     A rendered plot keeps mutating (image swap, Shiny re-render on resize) and
-     every mutation fired this observer, which yanked the view back down and made
-     it impossible to scroll up while a plot was on screen. */
+  /* Auto-scroll */
   var obs = new MutationObserver(function () {
     var s = document.getElementById(NS + 'msg-scroll');
-    if (!s) return;
-    var distFromBottom = s.scrollHeight - s.scrollTop - s.clientHeight;
-    if (distFromBottom < 120) s.scrollTop = s.scrollHeight;
+    if (s) s.scrollTop = s.scrollHeight;
   });
   $(document).ready(function () {
     var t = document.getElementById(NS + 'msg-inner');
     if (t) obs.observe(t, { childList: true, subtree: true });
 
-   /* Suggestion chip → fill input (user sends manually) */
+   /* Suggestion chip -> send straight away (no need to click Send) ##chipsend(06-10-26) */
     $(document).on('click', '.rch-chip', function () {
       var p = $(this).data('prompt');
       var ta = document.getElementById(NS + 'user_input');
       if (ta && p) {
+        $('.rch-chip').css('pointer-events', 'none');  /* no double send while the chat starts */
         ta.value = p;
-        ta.style.height = 'auto';
-        ta.style.height = Math.min(ta.scrollHeight, 200) + 'px';
-        ta.focus();
+        doSend();
       }
     });
     /* Round-trip: server signals to trigger API after dots are painted */

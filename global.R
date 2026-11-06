@@ -94,7 +94,7 @@ gre_config <- raisins_app_config(
   logout_id          = "rcbd_logout",
   subscribe_url      = "https://www.raisins.live/subscription/GRE_sub.html",
   version_record_url = "version.html",
-  protected_tabs     = c("Analysis", "Arrange Data", "Datasets",
+  protected_tabs     = c("Analysis", "Arrange Data", "Datasets", "RA-One",
                          "Feedback", "User", "retake_tour", "View Data", "FAQs")
 )
 raisins_use_app(gre_config)
@@ -118,8 +118,12 @@ source("dir/rcbd_gen_ui.R", local = TRUE)
 source("dir/rcbd_dataset_server.R", local = TRUE)
 source("dir/rcbd_dataset_ui.R", local = TRUE)
 
+### RA-One (RAISINS AI assistant, as in fsQCA)
+source("dir/AI/chat_ui.R", local = TRUE)
+source("dir/AI/chat_server.R", local = TRUE)
+source("dir/AI/gre_chat_server.R", local = TRUE)
+source("dir/AI/gre_chat_context.R", local = TRUE)
+source("dir/AI/gre_prompt.R", local = TRUE)
+
 # Table/font styles come directly from greyskull, as in RBD.
 
-# NOTE: the RA-One AI assistant (dir/AI/*) is NOT wired in v1. Its chat server is
-# invoked from inside the old ANOVA engine and needs a Growth-Rate chat context +
-# an OpenAI key. See BOOT-TEST-TODO.md to enable it.

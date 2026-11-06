@@ -2,7 +2,7 @@
 ##         ui of RAISINS Growth Rate Estimation  (Single Universe)           ----
 ##  Page head, loading screen, logout, navbar title and the Welcome tab come
 ##  from greyskull::raisins_page(); only this app's own tabs are here.
-##  The RA-One (AI) tab is intentionally dropped in v1 (ra_one = NULL).
+
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ui <- raisins_app_ui(
@@ -79,6 +79,7 @@ ui <- raisins_app_ui(
   analysis    = gre_ui(),
   create_data = gre_arrange_ui(),
   datasets    = rcbd_dataset_ui(),
+  ra_one      = chat_ui("gre_chat"),
   user        = invoice_rcbd_ui(),
   view_data   = fluidPage(
     uiOutput("rcbd_instr_filecheck"),

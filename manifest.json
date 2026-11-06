@@ -7022,7 +7022,7 @@
       "checksum": "a23929704d57da291c548874f14cef77"
     },
     ".Rprofile": {
-      "checksum": "c0b367d8062515ba9fe08ca0c072fac7"
+      "checksum": "c73b5d277a4a822069887e10842116bc"
     },
     "BOOT-TEST-TODO.md": {
       "checksum": "ab28e6230e3fe464d7af4bcdabd310ff"
@@ -7052,13 +7052,13 @@
       "checksum": "6dbc8ebc75eb2e7830977e3cc0246843"
     },
     "dir/AI/chat_server.R": {
-      "checksum": "29797dbb95f645c00c0ad497874a1e87"
+      "checksum": "f1a7c98a0f8d84805261f26a2c473629"
     },
     "dir/AI/chat_table_builder.R": {
       "checksum": "3024a5b89055bfe6a03fd70e416a2543"
     },
     "dir/AI/chat_ui.R": {
-      "checksum": "abadf2fea32c626849f52ab986d5224e"
+      "checksum": "6b3f0f904ae38b8ecfac263e8d2f4dd5"
     },
     "dir/AI/crd_ai_plot.R": {
       "checksum": "c54f05f206433da622d361b237f3bd4b"
@@ -7068,6 +7068,15 @@
     },
     "dir/AI/crdp_prompt.R": {
       "checksum": "281434a59b1e3e6f4cfb88c603b2a902"
+    },
+    "dir/AI/gre_chat_context.R": {
+      "checksum": "a90fc3f78d93548a306a6210960438d6"
+    },
+    "dir/AI/gre_chat_server.R": {
+      "checksum": "32929f1ffd3d42c577aa373073aeb071"
+    },
+    "dir/AI/gre_prompt.R": {
+      "checksum": "e8c8d73a75a9ae48547c9f48ac9a0df7"
     },
     "dir/AI/rcbd_ai_plot.R": {
       "checksum": "aa497d0cf0b1b545164325d331e20c60"
@@ -7088,7 +7097,7 @@
       "checksum": "1893437103377ac2ec587665e23b21dd"
     },
     "dir/gre_server.R": {
-      "checksum": "7833b89908b3f573a24d89ba6cae2029"
+      "checksum": "b4578b9d3a7ce62ea70e804a3885a577"
     },
     "dir/gre_ui.R": {
       "checksum": "00e928076e93fbbf7b19178b176ac498"
@@ -7112,7 +7121,7 @@
       "checksum": "f3aa53a1c5f2d5b212767b4597c8be07"
     },
     "global.R": {
-      "checksum": "5bab6114a3ce62998c2572830b0d818d"
+      "checksum": "7c3c3ce859c320817ed08ccb7857a899"
     },
     "growth_rate_report.Rmd": {
       "checksum": "2b64b8e53d5a98c9bcb1766552889218"
@@ -7133,7 +7142,7 @@
       "checksum": "b1af376bb5290c98eb7ae97ae1d8d036"
     },
     "ui.R": {
-      "checksum": "c2d0d7a2f9765c18995dc0b9df1a5c6f"
+      "checksum": "6858f8a8294cad1e32537ba5b3a73fd2"
     },
     "www/3DLine.png": {
       "checksum": "5015701ff34088c0e470d3fea23f3283"
