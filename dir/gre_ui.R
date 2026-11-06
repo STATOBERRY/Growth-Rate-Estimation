@@ -92,6 +92,27 @@ gre_wait_note <- function() {
 # The shared settings bar is moved into this slot on the active results pill.
 gre_bar_slot <- function() div(class = "gre-bar-slot")
 
+# Round picture button that picks a plot, the same as iconButtonUI in RBD.
+gre_icon_button <- function(id, img, label) {
+  div(
+    class = "gre-plot-icon",
+    actionButton(
+      id,
+      label = HTML(sprintf(
+        '<img src="%s" alt="" style="width:90%%; height:90%%; object-fit:contain; border-radius:50%%; background-color:#fef7ea; padding:10px;">',
+        img)),
+      `aria-label` = label,
+      style = "width:100px; height:100px; border-radius:50%; background:linear-gradient(135deg,#e29e3d,#f7d59c); border:none; box-shadow:0 2px 5px rgba(0,0,0,0.2); padding:0;"
+    ),
+    tags$div(label, style = "font-weight:bold; margin-top:8px;")
+  )
+}
+
+# The plot chosen with the picture buttons (output.gre_active_plot in gre_server).
+gre_plot_panel <- function(key, ...) {
+  conditionalPanel(sprintf("output.gre_active_plot == '%s'", key), ...)
+}
+
 # Results content, shown after Run.
 gre_results <- function(...) {
   conditionalPanel("output.submitClicked == true", div(class = "gre-styled-results", ...))
@@ -110,6 +131,10 @@ ul.nav-pills { display: flex !important; justify-content: center !important; fle
 #gre_mainpanel { min-width: 0; }
 /* Import and reshape: show why a file cannot be reshaped (other output errors stay hidden). */
 #gre_import_status.shiny-output-error-validation { visibility: visible; color: #a94442; font-weight: 600; }
+
+/* Plot picture buttons */
+.gre-plot-icons { display:flex; flex-wrap:wrap; justify-content:center; gap:18px 10px; max-width:1000px; margin:0 auto; }
+.gre-plot-icon { text-align:center; width:150px; }
 
 /* Notes and data checks */
 .gre-busy { display:none; position:fixed; right:22px; bottom:22px; z-index:2000;
@@ -423,9 +448,17 @@ gre_ui <- function() {
         tags$br(),
         gre_wait_note(),
         conditionalPanel("output.submitClicked == true",
-          tabsetPanel(id = "gre_plot_tabs", type = "pills",
-            tabPanel("Publication Figures", gre_publication_ui()),
-            tabPanel("Explore Data",
+          div(class = "gre-plot-icons",
+            gre_icon_button("gre_show_pub", "Summary.png", "Publication Figures"),
+            gre_icon_button("gre_show_explore", "Pair.png", "Explore Data"),
+            gre_icon_button("gre_show_trend", "Linecon.png", "Fitted Trend"),
+            gre_icon_button("gre_show_diag", "QQ.png", "Growth Diagnostics"),
+            gre_icon_button("gre_show_group", "Interaction.png", "Group Plots"),
+            gre_icon_button("gre_show_decomp", "Bar.png", "Decomposition")
+          ),
+          tags$br(),
+          gre_plot_panel("pub", gre_publication_ui()),
+          gre_plot_panel("explore",
               gre_interactive_workspace_ui("Explore Annual Series",
                 plotly::plotlyOutput("gre_explore_plot", height = "500px"),
                 selector = tagList(
@@ -434,12 +467,12 @@ gre_ui <- function() {
                       "Paired-series scatter" = "scatter")),
                   uiOutput("gre_explore_options")
                 ))),
-            tabPanel("Fitted Trend",
+          gre_plot_panel("trend",
               gre_trend_workspace_ui(),
               gre_interactive_workspace_ui("Interactive Fitted Trend",
                 tagList(uiOutput("gre_trend_note"),
                         plotly::plotlyOutput("gre_trend_interactive", height = "460px")))),
-            tabPanel("Growth Diagnostics",
+          gre_plot_panel("diag",
               gre_interactive_workspace_ui("Growth Diagnostics",
                 tagList(
                   tags$p("The Growth rates table gives the confidence interval, observation count and one-year residual correlation. Correlation is descriptive and uses adjacent calendar years only."),
@@ -449,18 +482,17 @@ gre_ui <- function() {
                     column(6, plotly::plotlyOutput("gre_lag_plot", height = "360px"))
                   )),
                 selector = uiOutput("gre_diagnostic_series"))),
-            tabPanel("Group Plots",
+          gre_plot_panel("group",
               gre_interactive_workspace_ui("Group Plots",
                 fluidRow(
                   column(6, plotly::plotlyOutput("gre_group_forest", height = "420px")),
                   column(6, plotly::plotlyOutput("gre_group_paths", height = "420px"))
                 ),
                 selector = uiOutput("gre_group_plot_series"))),
-            tabPanel("Decomposition",
+          gre_plot_panel("decomp",
               gre_interactive_workspace_ui("Area-Yield Decomposition",
                 tagList(uiOutput("gre_decomp_note"),
-                        plotly::plotlyOutput("gre_decomp_plot", height = "420px"))))
-          ),
+                        plotly::plotlyOutput("gre_decomp_plot", height = "420px")))),
           gre_tab_download_ui("plots")
         )
       ),

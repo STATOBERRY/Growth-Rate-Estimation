@@ -717,6 +717,14 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
 
   # Plotly widgets do not display validate() messages, so these notes say why a
   # chart is empty.
+  # Plot picture buttons: one plot at a time, as in the other RAISINS apps.
+  gre_active_plot <- reactiveVal("pub")
+  lapply(c("pub", "explore", "trend", "diag", "group", "decomp"), function(key) {
+    observeEvent(input[[paste0("gre_show_", key)]], gre_active_plot(key), ignoreInit = TRUE)
+  })
+  output$gre_active_plot <- reactive(gre_active_plot())
+  outputOptions(output, "gre_active_plot", suspendWhenHidden = FALSE)
+
   gre_plot_note <- function(text) tags$p(class = "text-muted", style = "padding:12px 4px;", text)
   output$gre_trend_note <- renderUI({
     if (!length(res()$trend_fits)) gre_plot_note("Run Trend fitting on an eligible series to see this plot.")
@@ -2000,7 +2008,7 @@ gre_tour_steps <- function() {
       # Plots & Graphs
       paste0(
         "<b>Plots &amp; Graphs</b><br><br>",
-        "Explore annual trajectories and change patterns, inspect diagnostics, and export publication figures."
+        "Click a <b>picture button</b> to open that plot: publication figures, annual trajectories and change patterns, the fitted trend, diagnostics, group plots and the decomposition."
       ),
       # Data quality
       paste0(
