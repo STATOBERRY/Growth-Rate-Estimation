@@ -80,9 +80,10 @@ ui <- raisins_app_ui(
   create_data = gre_arrange_ui(),
   datasets    = rcbd_dataset_ui(),
   user        = invoice_rcbd_ui(),
-  view_data   = tagList(
+  view_data   = fluidPage(
     uiOutput("rcbd_instr_filecheck"),
-    div(style = "text-align: center;", DTOutput("rcbd_ViewData"))
+    div(style = "text-align: center;", DTOutput("rcbd_ViewData")),
+    tags$br(), tags$br()
   ),
-  faqs        = uiOutput("instr_bttns_FAQs")
+  faqs        = fluidPage(uiOutput("instr_bttns_FAQs"))
 )

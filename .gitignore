@@ -12,7 +12,6 @@ service_account.json
 # deploy + renv artifacts (regenerable)
 renv/
 rsconnect/
-manifest.json
 renv.lock
 renvcodes.R
 

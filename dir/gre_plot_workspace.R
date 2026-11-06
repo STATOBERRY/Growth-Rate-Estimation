@@ -1,5 +1,5 @@
 ## ============================================================================
-##  RAISINS Growth Rate Estimation — trend-plot workspace (as in RAISINS RBD)
+##  RAISINS Growth Rate Estimation - trend-plot workspace (as in RAISINS RBD)
 ##  Colour patterns, palette styling, hide-legend and the DPI limit come from
 ##  greyskull (raisins_ws_*). The workspace frame / dialogs and the label
 ##  editor use the CRD workspace layout.
@@ -19,7 +19,7 @@ raisins_plot_dialog_ui <- function(id,title,...) {
         div(class="modal-header",tabindex="0",title="Drag this title bar to move; arrow keys also move the dialog",
           tags$button(type="button",class="close",`data-dismiss`="modal",`aria-label`="Close",tags$span(`aria-hidden`="true","\u00d7")),
           tags$h4(id=paste0(id,"-title"),class="modal-title",title),
-          tags$small(class="raisins-plot-drag-hint","Click and drag title bar to move · Drag edges or corners to resize")),
+          tags$small(class="raisins-plot-drag-hint","Click and drag title bar to move \u00b7 Drag edges or corners to resize")),
         div(class="modal-body",...),
         div(class="modal-footer",tags$button(type="button",class="btn btn-primary",`data-dismiss`="modal","Done"))),
       lapply(c('n','e','s','w','ne','nw','se','sw'),function(edge)
@@ -38,7 +38,7 @@ raisins_plot_workspace_ui <- function(title,toolbar,selector,plot,download,dialo
       .raisins-plot-workspace .raisins-plot-canvas{padding:10px 18px 18px;overflow-x:auto;}
       .raisins-plot-workspace .raisins-plot-download{padding:16px 20px;background:#f7f9fc;border-top:1px solid #e6eaf0;border-radius:0 0 12px 12px;}
       .raisins-plot-workspace .raisins-plot-export-settings{display:flex;gap:16px;flex-wrap:wrap;}
-      .raisins-plot-workspace .raisins-plot-export-settings .form-group{width:145px;margin-bottom:12px;}
+      .raisins-plot-workspace .raisins-plot-export-settings .form-group{flex:1 1 190px;max-width:260px;margin-bottom:12px;}
       .raisins-plot-workspace .raisins-plot-export-actions{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;}
       .raisins-plot-workspace .raisins-plot-export-actions .form-group{margin-bottom:0;}
       .raisins-plot-dialog .modal-dialog{width:560px;max-width:calc(100% - 24px);margin:24px auto;}
@@ -420,7 +420,7 @@ gre_explore_plot <- function(r, input) {
   series <- r$series
   check <- function(test, message) shiny::validate(shiny::need(test, message))
   if (kind == "scatter") {
-    check(length(series) >= 2L, "Select at least two series in Analysis Results.")
+    check(length(series) >= 2L, "Select at least two series in Data & Settings.")
     x <- input$gre_explore_x %||% series[1]
     y <- input$gre_explore_y %||% series[2]
     if (!x %in% series) x <- series[1]

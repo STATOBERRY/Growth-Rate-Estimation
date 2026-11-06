@@ -59,7 +59,7 @@ if (grepl("23600", plan)) {
 \textbf{Date} \\
 `r as.Date(bill_date)`\\
 \textbf{Invoice number:} \\
-SB/RMAOW/`r as.character(inv_no)` 
+SB/GRE/`r as.character(inv_no)` 
 \end{minipage}  
 \end{flushright}
 

@@ -49,8 +49,8 @@ raisins_tstyle_knitr_hook(params$table_style)
 # Greek letters are written as LaTeX math, which renders in any font.
 pdf_text <- function(x) {
   if (!is_pdf) return(x)
-  x <- gsub("α", "$\\\\alpha$", x)
-  x <- gsub("τ", "$\\\\tau$", x)
+  x <- gsub("\u03b1", "$\\\\alpha$", x)
+  x <- gsub("\u03c4", "$\\\\tau$", x)
   x
 }
 markdown_text <- function(value) {

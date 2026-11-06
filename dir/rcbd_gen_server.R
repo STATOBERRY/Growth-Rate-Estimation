@@ -188,7 +188,7 @@ gre_import_server <- function(input, output) {
   })
   output$gre_import_preset_ui <- renderUI({
     available <- if (excel()) Filter(function(x) x$sheet %in% sheets(), presets) else list()
-    options <- c(setNames(names(available), vapply(available, function(x) x$label, "")),
+    options <- c(if (length(available)) setNames(names(available), vapply(available, function(x) x$label, "")),
                  "Other layout (manual mapping)" = "manual")
     selectInput("gre_import_preset", "Choose a table", options, selected = unname(options[1L]))
   })

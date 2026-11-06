@@ -1,5 +1,5 @@
 ## ============================================================================
-##  RAISINS Growth Rate Estimation — Analysis engine  (gre_server)
+##  RAISINS Growth Rate Estimation - Analysis engine  (gre_server)
 ##  Base-R statistics (no extra package installs). Plugs into greyskull shell.
 ##  Signature matches the shell:  gre_server(input, output, session, shared)
 ## ============================================================================
@@ -211,9 +211,9 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
   downloadHandler <- error_support$downloadHandler
 
   ## -- upload box (preview mode gets the demo picker, like RBD) --------------
-  gre_demo_labels <- c("dataset1.csv" = "Coconut – Production & Area",
-                       "dataset2.csv" = "Coconut – District panel",
-                       "dataset3.csv" = "Coconut – Yield series")
+  gre_demo_labels <- c("dataset1.csv" = "Coconut \u2013 Production & Area",
+                       "dataset2.csv" = "Coconut \u2013 District panel",
+                       "dataset3.csv" = "Coconut \u2013 Yield series")
 
   observeEvent(input$gre_upload_help, {
     showModal(modalDialog(
@@ -448,23 +448,20 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
   }, ignoreInit = TRUE)
   output$gre_modules_ui <- renderUI({
     req(gre_raw())
-    checkboxGroupInput(
-      "gre_modules", "Trend analyses to run",
-      choices = c("Growth rates"                       = "growth",
-                  "Trend fitting (lin/quad/cubic/exp)" = "trend",
-                  "Mann-Kendall + Sen's slope"         = "mk",
-                  "Instability (CV, CDVI)"             = "instab",
-                  "Area–Yield decomposition"           = "decomp"),
-      selected = isolate(input$gre_modules) %||% c("growth", "trend", "mk", "instab"))
-  })
-
-  output$gre_sidebar_msg <- renderUI({
-    if (is.null(gre_raw())) return(NULL)
-    if (!nzchar(input$gre_year %||% ""))
-      return(div(style = "color:#2E7D32;", "Select the year column."))
-    if (length(input$gre_series %||% character(0)) < 1)
-      return(div(style = "color:#2E7D32;", "Select at least one series to analyse."))
-    NULL
+    wellPanel(
+      style = "background:#ffffff;",
+      gre_heading("Analyses to run", "analyses"),
+      checkboxGroupInput(
+        "gre_modules", NULL,
+        choices = c("Growth rates"                       = "growth",
+                    "Trend fitting (lin/quad/cubic/exp)" = "trend",
+                    "Mann-Kendall + Sen's slope"         = "mk",
+                    "Instability (CV, CDVI)"             = "instab",
+                    "Area\u2013Yield decomposition"           = "decomp"),
+        selected = isolate(input$gre_modules) %||% c("growth", "trend", "mk", "instab")),
+      div(class = "gre-note", style = "margin-bottom:0;",
+          "The level of significance, font, table style and digits are set on the results tabs after Run.")
+    )
   })
 
   ## -- data checks (shown with greyskull::raisins_check_boxes) ---------------
@@ -474,12 +471,50 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
                     group_col = input$gre_group %||% "")
   })
   gre_run_ok <- reactive(!is.null(gre_raw()) && nzchar(input$gre_year %||% "") &&
-                           !isTRUE(gre_checks()$blocked) && length(gre_checks()$valid) >= 1)
-  output$gre_checks_ui <- renderUI({
-    # Upload checks belong only to Analysis Results, like RBD.
-    if (!identical(input$subtabs, "Analysis Results")) return(NULL)
-    raisins_check_boxes(gre_checks(), can_run = gre_run_ok())
+                           !isTRUE(gre_checks()$blocked) && length(gre_checks()$valid) >= 1 &&
+                           length(input$gre_modules) >= 1)
+  # Before an upload: instructions. After: one summary strip, the next steps and
+  # the data checks, as on the first pill of RAISINS fsQCA.
+  output$gre_selection_status <- renderUI({
+    df <- gre_raw()
+    if (is.null(df)) return(gre_start_content())
+    none <- tags$em("none selected")
+    year <- input$gre_year %||% ""
+    series <- input$gre_series %||% character(0)
+    group <- input$gre_group %||% ""
+    next_steps <- c(
+      if (!nzchar(year)) "Select the year column.",
+      if (!length(series)) "Select at least one series to analyse.",
+      if (length(input$gre_modules) < 1) "Tick at least one analysis to run.")
+    div(
+      class = "gre-compact",
+      div(class = "gre-summary",
+          tags$span(tags$b("Data:"), sprintf("%d rows, %d columns", nrow(df), ncol(df))),
+          tags$span(tags$b("Year:"), if (nzchar(year)) year else none),
+          tags$span(tags$b("Group:"), if (nzchar(group)) group else tags$em("no grouping")),
+          tags$span(tags$b(sprintf("Series (%d):", length(series))),
+                    if (length(series)) paste(series, collapse = ", ") else none)),
+      if (length(next_steps))
+        div(class = "alert alert-info", tags$ul(lapply(next_steps, tags$li))),
+      gre_data_check_panel(gre_checks())
+    )
   })
+
+  ## Start-page buttons (shown before an upload)
+  observeEvent(input$gre_btn_upload, gre_faq_modal("Instructions", "dataprep_gre.html"), ignoreInit = TRUE)
+  observeEvent(input$gre_btn_csv, gre_faq_modal("How to save as CSV", "csv.html"), ignoreInit = TRUE)
+  observeEvent(input$gre_btn_growth, gre_faq_modal("Growth rates", "growthrates.html"), ignoreInit = TRUE)
+  observeEvent(input$gre_btn_analysis, {
+    showModal(modalDialog(
+      title = "How to perform the analysis",
+      tags$ol(
+        tags$li("Upload your CSV or Excel file in the sidebar."),
+        tags$li("Select the year column, the series and, if you have one, the group column."),
+        tags$li("Tick the analyses you need in the main panel."),
+        tags$li("Press ", tags$b("Run Analysis!"), " Each result opens on its own tab."),
+        tags$li("Use the ", tags$b("Statistical Report"), " tab to download your report.")),
+      easyClose = TRUE, footer = modalButton("Close")))
+  }, ignoreInit = TRUE)
 
   ## -- run state (drives the Run button and the result panels) --------------
   output$gre_can_run <- reactive(gre_run_ok())
@@ -495,6 +530,10 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
     if (!gre_run_ok()) return()
     gre_run_ready(FALSE)
     gre_submitted(TRUE)
+    # Open the first results pill that has something to show.
+    mods <- input$gre_modules
+    updateTabsetPanel(session, "subtabs", selected =
+      if ("growth" %in% mods) "Growth" else if (any(c("trend", "mk") %in% mods)) "Trend" else "Instability")
     session$onFlushed(function() {
       if (!session$isClosed()) gre_run_ready(TRUE)
     }, once = TRUE)
@@ -504,6 +543,10 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
   # A new file or a new column choice needs a fresh Run.
   observeEvent(list(gre_raw(), input$gre_year, input$gre_series, input$gre_group, input$gre_modules),
                { gre_submitted(FALSE) }, ignoreInit = TRUE)
+  # A new file always opens the first pill.
+  observeEvent(gre_raw(), {
+    updateTabsetPanel(session, "subtabs", selected = "Setup")
+  }, ignoreInit = TRUE)
   output$submitClicked <- reactive(gre_submitted())
   outputOptions(output, "submitClicked", suspendWhenHidden = FALSE)
 
@@ -603,12 +646,17 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
 
   ## -- output renderers ------------------------------------------------------
   output$gre_table_css <- renderUI({
-    css <- raisins_tstyle_css(input$gre_table_style, scope = c("#gre_mainpanel", ".gre-styled-results"))
+    css <- raisins_tstyle_css(input$gre_table_style, scope = ".gre-styled-results")
     if (nzchar(css)) tags$style(HTML(css))
+  })
+  # Digits box: an empty or out-of-range entry falls back to a usable value.
+  gre_digits_value <- reactive({
+    d <- suppressWarnings(as.integer(input$gre_digits))
+    if (!length(d) || is.na(d)) 3L else max(0L, min(6L, d))
   })
   result_table <- function(d, key) {
     req(!is.null(d))
-    cells <- gre_table_cells(d, input$gre_digits %||% 3L)
+    cells <- gre_table_cells(d, gre_digits_value())
     table <- knitr::kable(cells, format = "html", row.names = FALSE, escape = TRUE,
                           align = ifelse(vapply(d, is.numeric, logical(1)), "r", "l"))
     font <- raisins_font_value(input$gre_font %||% "cambria")
@@ -627,16 +675,11 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
     )
   }
 
-  output$gre_run_hint <- renderUI({
-    if (!gre_submitted() && !is.null(gre_raw()))
-      div(style = "color:#2E7D32;", "Set your columns and analyses, then click Run Analysis.")
+  output$gre_growth_table <- renderUI({
+    r <- res()
+    if (is.null(r$growth)) return(tags$p("Tick Growth rates on the Data & Settings tab and run the analysis to see this table. The analyses you selected are on the other tabs."))
+    result_table(r$growth, "growth")
   })
-  # Drives RBD's "results will appear shortly" note until the run has finished.
-  output$gre_results_ready <- reactive({
-    isTRUE(gre_run_ready()) && !is.null(tryCatch(res(), error = function(e) NULL))
-  })
-  outputOptions(output, "gre_results_ready", suspendWhenHidden = FALSE)
-  output$gre_growth_table <- renderUI({ req(res()$growth); result_table(res()$growth, "growth") })
   # Calculate with the run (not after the browser reports the panel visible),
   # so the calculator loader shows on this table while results are worked out.
   # Higher priority so it starts first: its "recalculating" signal (which opens
@@ -672,8 +715,14 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
       print(p)
     })
 
+  # Plotly widgets do not display validate() messages, so these notes say why a
+  # chart is empty.
+  gre_plot_note <- function(text) tags$p(class = "text-muted", style = "padding:12px 4px;", text)
+  output$gre_trend_note <- renderUI({
+    if (!length(res()$trend_fits)) gre_plot_note("Run Trend fitting on an eligible series to see this plot.")
+  })
   output$gre_trend_interactive <- plotly::renderPlotly({
-    shiny::validate(need(length(res()$trend_fits), "Run Trend fitting on an eligible series to see this plot."))
+    req(length(res()$trend_fits))
     plotly::ggplotly(gre_trend_plot_obj())
   })
   output$gre_diagnostic_series <- renderUI({
@@ -695,12 +744,16 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
       ggplot2::geom_line(colour = "#16655f") +
       ggplot2::geom_point(colour = "#16655f", size = 2.8))
   })
+  output$gre_lag_note <- renderUI({
+    if (sum(diff(diagnostic_data()$Year) == 1) < 3)
+      gre_plot_note("The one-year lag plot needs at least three pairs of adjacent years.")
+  })
   output$gre_lag_plot <- plotly::renderPlotly({
     d <- diagnostic_data()
     adjacent <- diff(d$Year) == 1
     lagged <- data.frame(Previous = head(d$Residual, -1)[adjacent],
                          Current = tail(d$Residual, -1)[adjacent])
-    shiny::validate(need(nrow(lagged) >= 3, "At least three adjacent-year pairs are needed."))
+    req(nrow(lagged) >= 3)
     plotly::ggplotly(gre_chart(lagged, ggplot2::aes(Previous, Current),
                               "One-year residual lag", "Previous year", "Current year") +
       ggplot2::geom_hline(yintercept = 0, colour = "#a9b6bc", linetype = 2) +
@@ -749,9 +802,16 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
       ggplot2::scale_colour_viridis_d(end = 0.85))
   })
   output$gre_quality_table <- renderUI(result_table(res()$quality, "quality"))
+  output$gre_decomp_note <- renderUI({
+    r <- res()
+    if (is.null(r$decomp)) gre_plot_note(r$decomp_msg %||% "Tick Area-Yield decomposition on the Data & Settings tab and run the analysis to see this plot.")
+  })
   output$gre_decomp_plot <- plotly::renderPlotly({
     d <- res()$decomp
-    shiny::validate(need(d, res()$decomp_msg %||% "Run Area-Yield decomposition to see this plot."))
+    req(d)
+    # Keep the table's order: plotly otherwise sorts the bars alphabetically and
+    # the waterfall no longer adds up from left to right.
+    d$Effect <- factor(d$Effect, levels = d$Effect)
     plotly::plot_ly(d, x = ~Effect, y = ~Contribution, type = "waterfall",
       measure = c("relative", "relative", "relative", "total"),
       increasing = list(marker = list(color = "#16655f")),
@@ -770,7 +830,9 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
       return(selectInput("gre_explore_base", "Base year (index = 100)", years,
                          selected = isolate(input$gre_explore_base)))
     }
-    if (kind == "scatter" && length(r$series) >= 2L) {
+    if (kind == "scatter" && length(r$series) < 2L)
+      return(tags$p("The paired scatter needs at least two series. Select another series on the Data & Settings tab and run the analysis again."))
+    if (kind == "scatter") {
       return(tagList(tags$p("Each point represents a year. Shared time trends can produce apparent associations."),
                      selectInput("gre_explore_x", "Horizontal series", r$series,
                                  selected = isolate(input$gre_explore_x) %||% r$series[1]),
@@ -796,8 +858,10 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
   })
   publication_plot <- reactive({
     choices <- publication_series()
+    # The selector's last value outlives it, so never trust it when it is gone:
+    # it would title an all-series figure with one series' name.
     series <- input$gre_pub_series %||% ""
-    if (length(choices) && !series %in% choices) series <- choices[1]
+    if (!series %in% choices) series <- if (length(choices)) choices[1] else ""
     gre_publication_plot(res(), input$gre_pub_kind %||% "trend", series, input)
   })
   output$gre_pub_plot <- renderPlot(publication_plot())
@@ -878,19 +942,12 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
     output$AI_typing_path_gre <- renderUI({
       tagList(
         # toolbar
-        HTML(
-          "<div style='display:flex; gap:10px; margin-bottom:10px;'>
-         <button type='button' onclick='raisinsGreCopy(this)'
-           style='background:#4682B4; color:#fff; border:none; border-radius:6px;
-                  padding:6px 14px; font-size:13px; font-weight:600; cursor:pointer;'>
-           <i class='fa fa-copy'></i> Copy
-         </button>
-         <button type='button' onclick='raisinsGreStop(this)'
-           style='background:#c0392b; color:#fff; border:none; border-radius:6px;
-                  padding:6px 14px; font-size:13px; font-weight:600; cursor:pointer;'>
-           <i class='fa fa-stop'></i> Quick
-         </button>
-       </div>"
+        tags$div(
+          class = "gre-ai-row",
+          tags$button(type = "button", class = "btn btn-info btn-sm",
+                      onclick = "raisinsGreCopy(this)", icon("copy"), " Copy"),
+          tags$button(type = "button", class = "btn btn-danger btn-sm",
+                      onclick = "raisinsGreStop(this)", icon("stop"), " Quick")
         ),
         # hidden holders for Quick and Copy
         div(id = "typed-gre-full", style = "display:none;", final_plain),
@@ -1001,7 +1058,7 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
       tags$h4("FAQs"),
       actionBttn(
         inputId = "instr_gre_fileprep_FAQ",
-        label = HTML("&#129300; How to prepare and upload file?"),  # 🤔
+        label = HTML("&#129300; How to prepare and upload file?"),  # 
         style = "stretch",
         color = "warning",
         size = "sm"
@@ -1009,7 +1066,7 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
       tags$br(),
       actionBttn(
         inputId = "instr_gre_growth_FAQ",
-        label = HTML("&#129488; What is CGR vs CAGR, and why is a rate blank?"),  # 🧐
+        label = HTML("&#129488; What is CGR vs CAGR, and why is a rate blank?"),  # 
         style = "stretch",
         color = "warning",
         size = "sm"
@@ -1017,7 +1074,7 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
       tags$br(),
       actionBttn(
         inputId = "instr_gre_trend_FAQ",
-        label = HTML("&#129327; Trend test, instability and decomposition"),  # 🤯
+        label = HTML("&#129327; Trend test, instability and decomposition"),  # 
         style = "stretch",
         color = "warning",
         size = "sm"
@@ -1055,7 +1112,7 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
                          decomp = "Area-Yield decomposition", group_comparison = "Group and combined growth")
   gre_report_notes  <- c(growth = "CGR, CAGR and average annual growth for each series",
                          trend  = "Linear, quadratic, cubic and exponential fits compared by AICc on the original scale",
-                         mk     = "Kendall's τ, p-value and Sen's slope with its confidence interval",
+                         mk     = "Kendall's \u03c4, p-value and Sen's slope with its confidence interval",
                          instab = "Coefficient of variation and Cuddy-Della Valle Index",
                          decomp = "Area, yield and interaction effects on production change",
                          group_comparison = "Growth estimates, confidence intervals and derived yield by group and for the combined series")
@@ -1072,15 +1129,12 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
                   publication = "Current publication figure", exploration = "Current exploratory chart")
     section_notes <- c(interp = "Plain-language summary of every analysis that was run",
                        plot = "Observed values with the best-fit trend for each series",
-                       publication = "Uses the current selections in Plots & Graphs → Publication Figures",
-                       exploration = "Uses the current selections in Plots & Graphs → Explore Data")
+                       publication = "Uses the current selections in Plots & Graphs \u2192 Publication Figures",
+                       exploration = "Uses the current selections in Plots & Graphs \u2192 Explore Data")
     if (!length(r$trend_fits)) sections <- sections[names(sections) != "plot"]
     prev_tables   <- isolate(input$gre_report_tables)
     prev_sections <- isolate(input$gre_report_sections)
     tagList(
-      h3(class = "stat-report-heading", "Statistical Analysis Report"),
-      p(class = "stat-report-intro",
-        "Prepare a consolidated account of the growth and trend analysis. Select the required tables and report sections below. Font and table style follow the options on the Analysis Results tab."),
       div(class = "stat-report-grid",
         tags$fieldset(class = "stat-report-panel stat-report-tables",
           tags$legend("Statistical tables"),
@@ -1123,7 +1177,7 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
     r <- res()
     # Leave out what the user unticked; the Rmd skips NULL tables.
     for (k in setdiff(names(gre_report_tables), keep)) r[k] <- list(NULL)
-    findings <- gre_report_findings(r, input$gre_digits %||% 3L)
+    findings <- gre_report_findings(r, gre_digits_value())
     if (identical(tab, "interpretation")) {
       r$interp <- res()$interp
     } else if ("interp" %in% secs && length(intersect(keep, names(gre_report_tables)))) {
@@ -1184,7 +1238,7 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
       if (!is.null(r$interp))
         tables$interpretation <- data.frame(Interpretation = strsplit(r$interp, "\n\n", fixed = TRUE)[[1]])
       gre_export_xlsx(file, tables, quality, c(trend = plot_path, unlist(extra_figures)),
-                     style, as.integer(input$gre_digits %||% 3L), r$alpha, title)
+                     style, gre_digits_value(), r$alpha, title)
       return(invisible(NULL))
     }
     file.copy("growth_rate_report.Rmd", file.path(td, "growth_rate_report.Rmd"), overwrite = TRUE)
@@ -1194,7 +1248,7 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
       params = list(
         report_title = title, table_style = style,
         font        = font,
-        digits      = as.integer(input$gre_digits %||% 3L),
+        digits      = gre_digits_value(),
         growth = r$growth, trend = r$trend, mk = r$mk,
         instab = r$instab, decomp = r$decomp, group_comparison = r$group_comparison, quality = quality,
         header_text = switch(header, custom = gre_report_text(input$gre_header_text, ""),
@@ -1245,7 +1299,7 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
 }
 
 ## ============================================================================
-##  RAISINS Growth Rate Estimation — error support + data checks
+##  RAISINS Growth Rate Estimation - error support + data checks
 ##  The support module (raisins_support_server / raisins_support_ui) and the
 ##  check box display (raisins_check_boxes) come from greyskull. The panel,
 ##  alert and user-details helpers are ported from RAISINS RBD (they are
@@ -1296,7 +1350,7 @@ gre_error_alert_server <- function(error_support, session = shiny::getDefaultRea
     seen <<- tail(c(seen, record$id), 64L)
     incident <- record$id
     copy <- shiny::tagList(
-      shiny::tags$span(class = "gre-alert-summary", "Don’t worry—we’re here to make statistics sweet."),
+      shiny::tags$span(class = "gre-alert-summary", "Don\u2019t worry\u2014we\u2019re here to make statistics sweet."),
       shiny::tags$span(class = "gre-alert-next", "Return to the app and try again, or ask the RAISINS team for help."))
     shinyalert::shinyalert(title = "Oho! Something went wrong.", text = copy,
       type = "", html = TRUE, showCancelButton = TRUE, animation = FALSE,
@@ -1308,7 +1362,6 @@ gre_error_alert_server <- function(error_support, session = shiny::getDefaultRea
         if (isTRUE(confirmed) && !is.null(current) && identical(current$id, incident) &&
             current$status %in% c("offered", "details", "failed")) {
           shiny::updateTabsetPanel(session, "tabs", selected = "Analysis")
-          shiny::updateTabsetPanel(session, "subtabs", selected = "Analysis Results")
           open_assistance()
         }
       })
@@ -1469,10 +1522,10 @@ gre_quality_summary <- function(raw, annual, year_col, group, requested, checks)
   data.frame(
     Item = c("Year column", "Period", "Input rows", "Recorded years", "Unrecorded calendar years",
              "Grouping", "Groups covered", names(series_notes)),
-    Detail = c(year_col, paste(min(years), max(years), sep = "–"), nrow(raw), length(years),
+    Detail = c(year_col, paste(min(years), max(years), sep = "\u2013"), nrow(raw), length(years),
                max(years) - min(years) + 1 - length(years),
                if (grouped) group else "Single annual series",
-               if (grouped) paste(length(group_names), "—", paste(group_names, collapse = ", ")) else "Not applicable",
+               if (grouped) paste(length(group_names), "\u2014", paste(group_names, collapse = ", ")) else "Not applicable",
                series_notes),
     row.names = NULL)
 }
@@ -1537,12 +1590,13 @@ gre_table_cells <- function(d, digits) {
     d[[nm]] <- if (nm %in% c("CGR p", "p-value")) {
       p_digits <- max(3L, digits)
       threshold <- formatC(10^-p_digits, digits = p_digits, format = "f")
-      ifelse(x < as.numeric(threshold), paste("<", threshold),
+      # No-break space: "< 0.001" stays on one line in narrow columns.
+      ifelse(x < as.numeric(threshold), paste0("<\u00a0", threshold),
              formatC(x, digits = p_digits, format = "f"))
     } else {
       formatC(x, digits = if (nm %in% c("Start year", "End year", "S", "Observations", "Lag pairs")) 0L else digits, format = "f")
     }
-    d[[nm]][!is.finite(x)] <- "—"
+    d[[nm]][!is.finite(x)] <- "\u2014"
   }
   d
 }
@@ -1654,7 +1708,7 @@ gre_data_checks <- function(df, year_col, series, group_col = "") {
 }
 
 ## ============================================================================
-##  RAISINS Growth Rate Estimation — interpretation text (as in RAISINS RBD)
+##  RAISINS Growth Rate Estimation - interpretation text (as in RAISINS RBD)
 ##  Builds the plain-text write-up for the Interpretation tab's typewriter and
 ##  the Statistical Report. Like RBD, the opening and closing wording is picked
 ##  at random from a few variants; every number comes from the results.
@@ -1666,7 +1720,7 @@ gre_analysis_citation <- function(cfg = raisins_app())
 
 gre_p_text <- function(p) {
   if (is.null(p) || !length(p) || is.na(p)) return("p not available")
-  if (p < 0.001) "p < 0.001" else paste0("p = ", formatC(p, digits = 3, format = "g"))
+  if (p < 0.001) "p < 0.001" else paste0("p = ", trimws(formatC(p, digits = 3, format = "g")))
 }
 
 gre_join <- function(x) {
@@ -1678,12 +1732,12 @@ gre_join <- function(x) {
 gre_interpretation_text <- function(r) {
   alpha <- r$alpha
   years <- r$year[is.finite(r$year)]
-  span  <- if (length(years)) paste0(min(years), "–", max(years)) else "the study period"
+  span  <- if (length(years)) paste0(min(years), "\u2013", max(years)) else "the study period"
   n_yr  <- length(unique(years))
   paras <- character()
 
   openings <- c(
-    "Hi, please relate the explanation below with the tables in the 'Analysis Results', 'Trend' and 'Instability' tabs.",
+    "Hi, please relate the explanation below with the tables in the 'Growth Rates', 'Trend' and 'Instability & Decomposition' tabs.",
     "Dear user, kindly connect the explanation below with the corresponding tables in the analysis subtabs.",
     "Hello, the tables in the analysis subtabs should be read together with the explanation below.",
     "Dear researcher, please interpret the results presented in the analysis subtabs based on the following explanation.")
@@ -1706,9 +1760,11 @@ gre_interpretation_text <- function(r) {
         return(paste0(g$Series[i], ": the compound growth rate could not be estimated because it requires at least three observations and all observed values must be positive."))
       dir <- if (cgr > 0) "grew" else if (cgr < 0) "declined" else "remained unchanged"
       sig <- if (is.na(g$`CGR p`[i])) "inference unavailable" else if (g$`CGR p`[i] < alpha) "statistically significant" else "not statistically significant"
+      annual <- g$`Annual avg (%/yr)`[i]
       paste0(g$Series[i], " ", dir, " at a compound growth rate (CGR) of ", signif(abs(cgr), 4), "% per year (", sig, ", ",
-             gre_p_text(g$`CGR p`[i]), "). The endpoint CAGR was ", signif(g$`CAGR (%/yr)`[i], 4),
-             "% per year and the average year-on-year change was ", signif(g$`Annual avg (%/yr)`[i], 4), "%.")
+             gre_p_text(g$`CGR p`[i]), "). The endpoint CAGR was ", signif(g$`CAGR (%/yr)`[i], 4), "% per year",
+             if (is.finite(annual)) paste0(" and the average year-on-year change was ", signif(annual, 4), "%.")
+             else "; the average year-on-year change is unavailable because no adjacent calendar years were observed.")
     }, character(1))
     paras <- c(paras, paste0(
       "Growth rates. The CGR is estimated from the log-linear model ln(y) = a + bt fitted to all years, so it reflects the whole period; ",
@@ -1734,7 +1790,10 @@ gre_interpretation_text <- function(r) {
       ci <- signif(c(m$`Sen CI low`[i], m$`Sen CI high`[i]), 4)
       trend <- if (m$Trend[i] == "No significant trend") "showed no significant monotonic trend" else
         paste0("showed a significant ", tolower(m$Trend[i]), " trend")
-      paste0(m$Series[i], " ", trend, " (Kendall's τ = ", signif(m$`Kendall tau`[i], 4), ", ", gre_p_text(m$`p-value`[i]),
+      tau <- m$`Kendall tau`[i]
+      paste0(m$Series[i], " ", trend, " (",
+             if (is.finite(tau)) paste0("Kendall's \u03c4 = ", signif(tau, 4)) else "Kendall's \u03c4 is undefined for a constant series",
+             ", ", gre_p_text(m$`p-value`[i]),
              "), with a Sen's slope of ", signif(m$`Sen slope/yr`[i], 4), " units per year",
              if (all(is.finite(ci))) paste0(" (confidence interval ", ci[1], " to ", ci[2], ").")
              else " (confidence interval unavailable).")
@@ -1748,8 +1807,11 @@ gre_interpretation_text <- function(r) {
   # Instability
   ins <- r$instab
   if (!is.null(ins) && nrow(ins)) {
-    lines <- vapply(seq_len(nrow(ins)), function(i)
-      paste0(ins$Series[i], " had a CV of ", signif(ins$`CV (%)`[i], 4), "% and a CDVI of ", signif(ins$`CDVI (%)`[i], 4), "%."), character(1))
+    lines <- vapply(seq_len(nrow(ins)), function(i) {
+      if (!is.finite(ins$`CV (%)`[i]))
+        return(paste0("CV and CDVI could not be calculated for ", ins$Series[i], " because they require nonnegative values and a positive mean."))
+      paste0(ins$Series[i], " had a CV of ", signif(ins$`CV (%)`[i], 4), "% and a CDVI of ", signif(ins$`CDVI (%)`[i], 4), "%.")
+    }, character(1))
     paras <- c(paras, paste0(
       "Instability. The coefficient of variation (CV) includes variation caused by the trend itself, whereas the ",
       "Cuddy-Della Valle Index (CDVI) adjusts CV for the fitted linear trend. ",
@@ -1759,19 +1821,26 @@ gre_interpretation_text <- function(r) {
   # Decomposition
   d <- r$decomp
   if (!is.null(d) && nrow(d)) {
+    effect <- function(name, column) signif(d[[column]][d$Effect == name], 4)
+    shares <- if (all(is.finite(d$`Share (%)`))) paste0(
+      " The area effect accounts for ", effect("Area effect", "Share (%)"), "% of this change, the yield effect for ",
+      effect("Yield effect", "Share (%)"), "% and their interaction for ", effect("Interaction effect", "Share (%)"), "%.")
     paras <- c(paras, paste0(
       "Area-yield decomposition. The first-to-last production change is the sum of the area, yield and interaction effects. ",
-      "These are accounting contributions. Offsetting effects can produce negative shares or shares above 100%."))
+      "Production changed by ", effect("Total change", "Contribution"), " production units: area effect ",
+      effect("Area effect", "Contribution"), ", yield effect ", effect("Yield effect", "Contribution"),
+      " and interaction effect ", effect("Interaction effect", "Contribution"), ".", shares,
+      " These are accounting contributions. Offsetting effects can produce negative shares or shares above 100%."))
   }
 
   paras <- c(paras, gre_analysis_citation(), paste(
     "References:",
     "1. Hisham, M. M., Chandran, J., & Gopinath, P. P. (2025). RAISINS: Integrating R and AI for Agricultural Data Analysis. Journal of Sustainable Technology in Agriculture, 1(1). PAPAYA Academic Press. https://doi.org/10.5281/zenodo.15622128",
     "2. R Core Team. 2024. R: A language and environment for statistical computing. R Foundation for Statistical Computing, Vienna, Austria. Available from https://www.R-project.org/.",
-    "3. Mann, H. B. (1945). Nonparametric tests against trend. Econometrica, 13(3), 245–259.",
+    "3. Mann, H. B. (1945). Nonparametric tests against trend. Econometrica, 13(3), 245\u2013259.",
     "4. Kendall, M. G. (1975). Rank Correlation Methods. Charles Griffin, London.",
-    "5. Sen, P. K. (1968). Estimates of the regression coefficient based on Kendall's tau. Journal of the American Statistical Association, 63(324), 1379–1389.",
-    "6. Cuddy, J. D. A., & Della Valle, P. A. (1978). Measuring the instability of time series data. Oxford Bulletin of Economics and Statistics, 40(1), 79–85.",
+    "5. Sen, P. K. (1968). Estimates of the regression coefficient based on Kendall's tau. Journal of the American Statistical Association, 63(324), 1379\u20131389.",
+    "6. Cuddy, J. D. A., & Della Valle, P. A. (1978). Measuring the instability of time series data. Oxford Bulletin of Economics and Statistics, 40(1), 79\u201385.",
     sep = "\n"),
     sample(closings, 1))
   paste(paras, collapse = "\n\n")
@@ -1791,12 +1860,15 @@ gre_tour_steps <- function() {
       "a[data-value='FAQs']",
       "a[data-value='Analysis']",
       "#subtabs",
-      "a[data-value='Analysis Results']",
+      "a[data-value='Setup']",
       "#sidebar",
       "#gre_mainpanel",
+      "a[data-value='Growth']",
       "a[data-value='Trend']",
-      "a[data-value='Plots']",
       "a[data-value='Instability']",
+      "a[data-value='Groups']",
+      "a[data-value='Plots']",
+      "a[data-value='DataQuality']",
       "a[data-value='Interpretation']",
       "a[data-value='Report']",
       "#rcbd_logout"
@@ -1874,33 +1946,39 @@ gre_tour_steps <- function() {
       # Subtabs
       paste0(
         "<b>&#128196; Analysis Subtabs</b><br><br>The analysis subtabs follow this order:<br>",
-        "1. <b>Analysis Results</b><br>2. <b>Trend</b><br>3. <b>Plots &amp; Graphs</b><br>",
-        "4. <b>Instability &amp; Decomposition</b><br>5. <b>Interpretation</b><br>",
-        "6. <b>Statistical Report</b><br><br>View Data and FAQs are available in the main navigation."
+        "1. <b>Data &amp; Settings</b><br>2. <b>Growth Rates</b><br>3. <b>Trend</b><br>",
+        "4. <b>Instability &amp; Decomposition</b><br>5. <b>Group Comparison</b><br>",
+        "6. <b>Plots &amp; Graphs</b><br>7. <b>Data Quality</b><br>",
+        "8. <b>Interpretation</b><br>9. <b>Statistical Report</b><br><br>",
+        "View Data and FAQs are available in the main navigation."
       ),
-      # Analysis Results
+      # Data & Settings
       paste0(
-        "<b>&#128202; Analysis Results Tab</b><br><br>",
-        "The <b>primary analysis workspace</b> of the module.<br><br>",
-        "After you click <b>Run Analysis</b>, the <b>growth rates</b> of every series ",
-        "(CGR, CAGR and average annual growth) appear here."
+        "<b>&#128202; Data &amp; Settings Tab</b><br><br>",
+        "Every analysis <b>starts here</b>: choose your data and what to calculate.<br><br>",
+        "After you click <b>Run Analysis</b>, the results open on the tabs that follow."
       ),
       # Sidebar
       paste0(
         "<b>&#9881;&#65039; Sidebar - Variable Setup</b><br><br>",
-        "Use this panel to configure the analysis.<br><br>",
+        "Use this panel to choose your data.<br><br>",
         "&#8226; Upload your dataset (CSV / Excel).<br>",
         "&#8226; Select the <b>Year</b> column and the <b>Series</b> to analyse.<br>",
         "&#8226; Optionally pick a <b>Group</b> column to sum groups by year.<br>",
-        "&#8226; Tick the <b>trend analyses</b> you need.<br>",
         "&#8226; Click <b>Run Analysis</b>."
       ),
-      # Results panel
+      # Main panel
       paste0(
-        "<b>&#128203; Results Panel</b><br><br>",
-        "Once the analysis is submitted, the <b>growth-rate table</b> is displayed here.<br><br>",
-        "Use the controls above the table to change the ",
-        "<b>level of significance, font and table style</b>."
+        "<b>&#128203; Summary and Analyses</b><br><br>",
+        "See a <b>summary of your selection</b> and any <b>data check notes</b>.<br><br>",
+        "Tick the <b>analyses to run</b> here. The <b>?</b> beside a heading explains it."
+      ),
+      # Growth rates
+      paste0(
+        "<b>&#127793; Growth Rates Tab</b><br><br>",
+        "The <b>growth rates</b> of every series (CGR, CAGR and average annual growth).<br><br>",
+        "Use the bar above the results to change the ",
+        "<b>digits, font, table style and level of significance</b>."
       ),
       # Trend Fitting
       paste0(
@@ -1908,16 +1986,26 @@ gre_tour_steps <- function() {
         "<b>Linear, quadratic, cubic and exponential</b> trends compared by AICc, ",
         "alongside the Mann-Kendall trend test and Sen's slope."
       ),
-      # Plots & Graphs
-      paste0(
-        "<b>Plots &amp; Graphs</b><br><br>",
-        "Explore annual trajectories and change patterns, inspect diagnostics, and export publication figures."
-      ),
       # Instability and decomposition
       paste0(
         "<b>Instability &amp; Decomposition</b><br><br>",
         "Compare the coefficient of variation and trend-adjusted instability, ",
         "then see how area, yield and their interaction contribute to the change in production."
+      ),
+      # Group comparison
+      paste0(
+        "<b>Group Comparison</b><br><br>",
+        "If you chose a <b>Group column</b>, growth estimates for each group and for the combined series appear here."
+      ),
+      # Plots & Graphs
+      paste0(
+        "<b>Plots &amp; Graphs</b><br><br>",
+        "Explore annual trajectories and change patterns, inspect diagnostics, and export publication figures."
+      ),
+      # Data quality
+      paste0(
+        "<b>Data Quality</b><br><br>",
+        "Shows the <b>period covered</b>, unrecorded years, missing values and any series left out by the data checks."
       ),
       # Interpretation
       paste0(
@@ -1928,7 +2016,7 @@ gre_tour_steps <- function() {
       paste0(
         "<b>&#128196; Statistical Report Tab</b><br><br>",
         "Select the <b>tables and sections</b> to include and download a ",
-        "<b>Word, PDF or HTML</b> report."
+        "<b>Word, PDF, HTML or Excel</b> report."
       ),
       # Sign Out
       paste0(
@@ -2003,7 +2091,7 @@ gre_tour_server <- function(input, session, current_subscriber) {
   # User chose: Skip tour, go to analysis
   observeEvent(input$welcome_skip_tour, {
     shinyjs::runjs("document.getElementById('welcome_modal_overlay').style.display = 'none';")
-    updateTabsetPanel(session, "subtabs", selected = "Analysis Results")
+    updateTabsetPanel(session, "subtabs", selected = "Setup")
   })
 
   # Retake tour button
@@ -2045,7 +2133,7 @@ gre_tour_server <- function(input, session, current_subscriber) {
     if (raisins_signed_out(session)) return()   # signed out by another login
     if (input$tabs == "retake_tour") {
       updateTabsetPanel(session, inputId = "tabs", selected = "Analysis")
-      updateTabsetPanel(session, inputId = "subtabs", selected = "Analysis Results")
+      updateTabsetPanel(session, inputId = "subtabs", selected = "Setup")
       run_tour()
     }
   })

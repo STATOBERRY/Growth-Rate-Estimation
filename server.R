@@ -15,6 +15,9 @@ server <- function(input, output, session) {
   gre_support <- gre_server(input, output, session, shared,
                             support_send = core$support_send)
 
+  ## "?" help next to every table heading
+  gre_help_server(input)
+
   ## Usage / invoice tab (shared) -- uses this app's upload + submit input IDs
   invoice_rcbd_server(input, output, session, shared, error_support = gre_support,
                       file_id = "rcbd_file1", submit_id = "rcbd_submit",

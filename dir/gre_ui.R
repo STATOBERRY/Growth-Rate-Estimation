@@ -1,5 +1,5 @@
 ## ============================================================================
-##  RAISINS Growth Rate Estimation — Quick Tour  (ported from RAISINS RBD)
+##  RAISINS Growth Rate Estimation - Quick Tour  (ported from RAISINS RBD)
 ##  Tour options, events and look come from greyskull (raisins_run_tour);
 ##  only the steps and the welcome / complete / skipped boxes are this app's.
 ## ============================================================================
@@ -49,9 +49,9 @@ gre_welcome_overlay <- function() {
 }
 
 ## ============================================================================
-##  RAISINS Growth Rate Estimation — Analysis tab UI  (gre_ui)
-##  Layout follows RAISINS RBD (Single Universe): centred pill subtabs, the
-##  sidebar inside "Analysis Results", an options well above the results.
+##  RAISINS Growth Rate Estimation - Analysis tab UI  (gre_ui)
+##  Layout follows RAISINS fsQCA: centred pills, the sidebar on the first pill
+##  only, full-width results with one shared settings bar on the results pills.
 ##  Shared input IDs reused so the greyskull invoice / View Data / login wiring
 ##  keeps working unchanged:
 ##     rcbd_file1  (upload)   rcbd_submit (run)   demo_data_select (demo picker)
@@ -80,47 +80,62 @@ gre_tab_download_ui <- function(key) {
       downloadButton(paste0("gre_download_", key), "Download report"))
 }
 
-gre_ui <- function() {
-  fluidPage(
-    titlePanel(tags$div(tags$b("Growth Rate Estimation & Trend Analysis", style = "color:#000000"))),
-    # Dynamic login page----
-    useShinyjs(),
-    introjsUI(),
-    raisins_login_card(),
-    ############################### suppress warning messages
-    tags$style(
-      type = "text/css",
-      ".shiny-output-error { visibility: hidden; }",
-      ".shiny-output-error:before { visibility: hidden; }"
-    ),
-    ################ centering tabset panel
-    tags$head(
-      tags$style(HTML("
-ul.nav-pills{
-  display: flex !important;
-  justify-content: center !important;
-}
-#subtabs, #gre_plot_tabs { flex-wrap: wrap; }
-#gre_plot_tabs > li > a { border-radius: 999px; }
-.gre-analysis-options { display:flex; flex-wrap:wrap; }
-.gre-analysis-options > .col-sm-3 { flex:1 1 160px; min-width:0; }
-#gre_mainpanel { min-width:0; }
+## ---- Small page pieces shared by the pills (same look as RAISINS fsQCA) ------
+gre_results_wait <- "Complete the settings, then press 'Run Analysis!' in the sidebar. Results appear here."
 
-/*pickerinput styles*/
-.brand-picker1 button.btn.dropdown-toggle.btn-default {
-  background-color: #b8fffa;
-  color: black;
-}
-.brand-picker2 button.btn.dropdown-toggle.btn-default {
-  background-color: #e4ccff;
-  color: black;
-}
-.brand-picker3 button.btn.dropdown-toggle.btn-default {
-  background-color: #ecffa6;
-  color: black;
+# Shown on a results pill until Run has been pressed.
+gre_wait_note <- function() {
+  conditionalPanel("output.submitClicked !== true",
+                   div(class = "alert alert-info", gre_results_wait))
 }
 
-/* Guided picker highlight (as in RBD); @keyframes violet-neon-pulse is in greyskull.css */
+# The shared settings bar is moved into this slot on the active results pill.
+gre_bar_slot <- function() div(class = "gre-bar-slot")
+
+# Results content, shown after Run.
+gre_results <- function(...) {
+  conditionalPanel("output.submitClicked == true", div(class = "gre-styled-results", ...))
+}
+
+## ---- Frame styles: colours, pills and notes, as in RAISINS fsQCA ------------
+gre_frame_css <- function() {
+  tags$style(HTML("
+/* Pills */
+.nav-pills > li > a { color: #804303; }
+.nav-pills > li.active > a,
+.nav-pills > li.active > a:focus,
+.nav-pills > li.active > a:hover { color: #000000; background-color: #f0df75; }
+ul.nav-pills { display: flex !important; justify-content: center !important; flex-wrap: wrap !important; }
+.tab-content > .tab-pane { padding-bottom: 90px; }
+#gre_mainpanel { min-width: 0; }
+/* Import and reshape: show why a file cannot be reshaped (other output errors stay hidden). */
+#gre_import_status.shiny-output-error-validation { visibility: visible; color: #a94442; font-weight: 600; }
+
+/* Notes and data checks */
+.gre-busy { display:none; position:fixed; right:22px; bottom:22px; z-index:2000;
+            background:#fff7db; border:1px solid #f0df75; border-radius:6px;
+            padding:8px 14px; font-size:13px; box-shadow:0 2px 8px rgba(0,0,0,.15); }
+.gre-datacheck { border:1px solid #f0d58a; background:#fffbea; border-radius:6px;
+                 padding:6px 12px; margin:6px 0 10px; font-size:12px; }
+.gre-datacheck.has-error { border-color:#ebccd1; background:#fdf3f3; }
+.gre-datacheck-head { font-weight:bold; margin-bottom:3px; }
+.gre-datacheck ul { list-style:none; padding-left:2px; margin:0; }
+.gre-datacheck li { margin:3px 0; overflow-wrap:anywhere; }
+.gre-chk-mark { display:inline-block; width:16px; font-weight:bold; color:#b8860b; }
+.gre-datacheck.has-error .gre-chk-mark, .gre-datacheck.has-error li { color:#a94442; }
+.gre-summary { display:flex; flex-wrap:wrap; gap:4px 22px; font-size:12px; color:#444;
+               background:#f7f7f7; border:1px solid #e3e3e3; border-radius:4px;
+               padding:6px 12px; margin-bottom:8px; }
+.gre-summary b { margin-right:4px; }
+.gre-compact .alert { font-size:12px; padding:6px 12px; margin-bottom:8px; }
+.gre-compact .alert ul { margin:0; padding-left:16px; }
+.gre-note { font-size:12px; color:#666; margin:2px 0 12px; }
+.gre-help-link { margin-left:6px; font-size:15px; }
+.gre-ai-row { margin-bottom:6px; }
+.gre-ai-row button { margin-right:6px; }
+.gre-styled-results h4 { margin-top:22px; }
+
+/* Guided picker highlight; @keyframes violet-neon-pulse is in greyskull.css */
 .brand-picker1.violet-neon-highlight button.dropdown-toggle,
 .brand-picker2.violet-neon-highlight button.dropdown-toggle,
 .brand-picker3.violet-neon-highlight button.dropdown-toggle {
@@ -133,8 +148,42 @@ ul.nav-pills{
     0 0 40px 14px rgba(167,139,250,0.45) !important;
   animation: violet-neon-pulse 1s infinite alternate;
 }
-")),
-      tags$script(HTML("
+"))
+}
+
+## ---- Statistical Report styles, as in RAISINS fsQCA ------------------------
+gre_report_css <- function() {
+  tags$style(HTML(paste0(
+    ".stat-report-body{max-width:1180px;margin:24px auto 36px;line-height:1.55;} ",
+    ".stat-report-heading{font-family:Cambria,Georgia,serif;font-size:29px;color:#293c31;margin:0 0 10px;} ",
+    ".stat-report-intro{color:#59655e;margin-bottom:24px;max-width:960px;} ",
+    ".stat-report-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(285px,1fr);gap:24px;align-items:start;} ",
+    ".stat-report-panel{border:1px solid #dce3dc;border-radius:6px;padding:20px 22px;background:#fff;min-width:0;} ",
+    ".gre-report-details{max-width:1180px;margin:24px auto;gap:20px;align-items:stretch;} ",
+    ".gre-report-details .stat-report-panel{min-width:0;border-radius:14px;border:1px solid #d7e5de;background:linear-gradient(155deg,#f4faf7 0%,#fff 55%);box-shadow:0 5px 18px rgba(35,76,59,.07);} ",
+    ".gre-report-details .stat-report-panel legend{padding:4px 10px;border-radius:8px;background:#e7f3ec;color:#28563f;} ",
+    ".gre-report-details .control-label{color:#314b3f;font-weight:600;} ",
+    ".gre-report-details .form-control{border:1px solid #c9d9d0;border-radius:8px;box-shadow:none;} ",
+    ".gre-report-details .form-control:focus{border-color:#388873;box-shadow:0 0 0 2px rgba(56,136,115,.16);} ",
+    ".stat-report-panel legend{font-family:Cambria,Georgia,serif;font-size:19px;font-weight:600;color:#31483b;border:0;margin:0 0 4px;padding:0;width:auto;} ",
+    ".stat-report-note{font-size:13px;color:#6b756f;margin-bottom:16px;} ",
+    ".stat-report-tables .shiny-options-group{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px;} ",
+    ".stat-report-sections .shiny-options-group{display:grid;gap:9px;} ",
+    ".stat-report-panel .checkbox{margin:0;padding:11px 10px;border:1px solid #e5e9e4;border-radius:4px;background:#fcfdfb;} ",
+    ".stat-report-panel .checkbox:focus-within,.stat-report-panel .checkbox:hover{border-color:#a8bcae;background:#f5f8f3;} ",
+    ".stat-report-panel .checkbox label{padding-left:24px;display:block;line-height:1.45;} ",
+    ".stat-report-panel input[type=checkbox]{accent-color:#276344;margin-top:5px;} ",
+    ".stat-report-option-title{display:block;font-size:15px;font-weight:600;color:#304338;} ",
+    ".stat-report-option-description{display:block;font-size:12px;color:#738078;font-weight:400;margin-top:3px;} ",
+    ".stat-report-export{margin-top:24px;padding:18px 22px;border:1px solid #cbd7cd;border-radius:4px;background:#f6f8f4;display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;} ",
+    ".stat-report-export .shiny-input-container{margin-bottom:0;} .stat-report-export .btn{padding:11px 22px;font-weight:600;} ",
+    "@media(max-width:850px){.stat-report-grid{grid-template-columns:1fr}.stat-report-export{justify-content:center}} ",
+    "@media(max-width:520px){.stat-report-tables .shiny-options-group{grid-template-columns:1fr}.stat-report-panel{padding:16px}}")))
+}
+
+## ---- Browser scripts ---------------------------------------------------------
+gre_frame_js <- function() {
+  tags$script(HTML("
 // Scroll only the Shiny app or its nearest scroll container, never the hosting page.
 // Used by the error-support alert to bring the assistance form into view.
 function raisinsScrollTo(el, block) {
@@ -221,15 +270,57 @@ $(document).on('hidden.bs.select', '#gre_series', function () {
     Shiny.setInputValue('variables_dropdown_closed', Math.random());
   }
 });
+
+// 'Working...' note: appears when a calculation takes longer than a moment.
+(function () {
+  var timer = null;
+  $(document).on('shiny:busy', function () {
+    clearTimeout(timer); timer = setTimeout(function () { $('#gre_busy').fadeIn(150); }, 1200);
+  });
+  $(document).on('shiny:idle', function () { clearTimeout(timer); $('#gre_busy').fadeOut(150); });
+})();
+
+// Move the shared settings bar into the slot of the active pill, or park it
+// (hidden) when the pill has no slot.
+(function () {
+  function place() {
+    var pane = $('#subtabs').closest('.tabbable').find('> .tab-content > .tab-pane.active');
+    var slot = pane.find('.gre-bar-slot').first();
+    $('#gre_results_bar').appendTo(slot.length ? slot : $('#gre_shared_controls'));
+  }
+  $(document).on('shown.bs.tab', '#subtabs a[data-toggle=\"tab\"]', place);
+  $(document).on('shiny:connected', function () { setTimeout(place, 0); });
+})();
 "))
+}
+
+gre_ui <- function() {
+  fluidPage(
+    titlePanel(tags$div(tags$b("Growth Rate Estimation & Trend Analysis", style = "color:#000000"))),
+    # Dynamic login page----
+    useShinyjs(),
+    introjsUI(),
+    raisins_login_card(),
+    ############################### suppress warning messages
+    tags$style(
+      type = "text/css",
+      ".shiny-output-error { visibility: hidden; }",
+      ".shiny-output-error:before { visibility: hidden; }"
     ),
+    tags$head(gre_frame_css(), gre_frame_js()),
     gre_welcome_overlay(),
+    div(id = "gre_busy", class = "gre-busy",
+        icon("spinner", class = "fa-spin"), " Working... large data or many series can take a while."),
+    # Error assistance (RAISINS error support), shown above the pills
+    uiOutput("gre_support_panel"),
+    uiOutput("gre_table_css"),
     ######################
     tabsetPanel(
       id = "subtabs",
       type = "pills",
-      tabPanel("Analysis Results",
-        icon = icon("american-sign-language-interpreting"),
+
+      # Pill 1: sidebar (upload, columns, Run) + main panel (summary, settings)
+      tabPanel("Data & Settings", value = "Setup", icon = icon("sliders-h"),
         tags$br(),
         sidebarPanel(
           id = "sidebar",
@@ -242,13 +333,12 @@ $(document).on('hidden.bs.select', '#gre_series', function () {
           uiOutput("gre_year_ui"),
           uiOutput("gre_series_ui"),
           uiOutput("gre_group_ui"),
-          uiOutput("gre_modules_ui"),
+          tags$br(),
           tags$br(),
           conditionalPanel("output.gre_can_run === true",
             div(id = "rcbd_submit_wrapper", style = "display:flex;justify-content:center;",
                 actionBttn(inputId = "rcbd_submit", label = "Run Analysis!",
                            color = "danger", style = "jelly"))),
-          uiOutput("gre_sidebar_msg"),
           tags$br(),
           tags$br(),
           tags$br(),
@@ -272,97 +362,66 @@ $(document).on('hidden.bs.select', '#gre_series', function () {
         ),
         mainPanel(
           id = "gre_mainpanel",
-          uiOutput("gre_support_panel"),
-          uiOutput("gre_table_css"),
-          uiOutput("gre_checks_ui"),
-          uiOutput("gre_run_hint"),
-          wellPanel(
-            tags$h4("Analysis and table options"),
-            fluidRow(class = "gre-analysis-options",
-              column(width = 3,
-                     selectInput("gre_alpha", "Level of significance (α):",
-                                 choices = c("0.05", "0.01", "0.10"), selected = "0.05")),
-              column(width = 3,
-                     selectInput("gre_font", "Select Font:",
-                                 choices = raisins_font_choices, selected = "cambria")),
-              column(width = 3,
-                     selectInput("gre_table_style", "Table Style:",
-                                 choices = raisins_tstyle_choices, selected = raisins_tstyle_value(NULL))),
-              column(width = 3,
-                     selectInput("gre_digits", "Decimal digits:",
-                                 choices = 0:6, selected = 3))
-            ),
-            style = "background-color: #eef2da; border: 1px solid #ddd; border-radius: 3px; padding: 15px;"
-          ),
-          conditionalPanel(
-            condition = "output.submitClicked == true",
-            # RBD's wait note, shown until the results have been calculated.
-            conditionalPanel(
-              condition = "!output.gre_results_ready",
-              div(
-                style = "display: flex; justify-content: center; align-items: center; margin: 6px 0; gap: 10px;",
-                div(
-                  style = "
-        border: 4px solid #f3f3f3; /* Light grey */
-        border-top: 4px solid #3498db; /* Blue */
-        border-radius: 50%;
-        width: 30px;
-        height: 30px;
-        animation: spin 1s linear infinite;
-      ",
-                  tags$style(HTML("@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }"))
-                ),
-                span(
-                  style = "color:#666; font-style: italic;",
-                  "If your dataset is correctly formatted for growth rate analysis, the results will appear shortly. Please wait while the analysis is being performed."
-                )
-              )
-            ),
-            tags$br(),
-            gre_calculator_loader(uiOutput("gre_growth_table")),
-            gre_tab_download_ui("growth")
-          )
+          uiOutput("gre_selection_status"),
+          uiOutput("gre_modules_ui")
+        )
+      ),
+
+      tabPanel("Growth Rates", value = "Growth", icon = icon("seedling"),
+        tags$br(),
+        gre_bar_slot(),
+        gre_wait_note(),
+        gre_results(
+          gre_heading("Growth rates", "growth"),
+          gre_calculator_loader(uiOutput("gre_growth_table")),
+          gre_tab_download_ui("growth")
         )
       ),
 
       tabPanel("Trend", value = "Trend", icon = icon("chart-line"),
-        conditionalPanel("output.submitClicked == true",
-          div(class = "gre-styled-results",
-            tags$h3("Trend model comparison"),
-            gre_calculator_loader(uiOutput("gre_trend_table")),
-            tags$hr(),
-            tags$h3("Mann-Kendall test and Sen's slope"),
-            uiOutput("gre_mk_intro"),
-            gre_calculator_loader(uiOutput("gre_mk_table")),
-            gre_tab_download_ui("trend")
-          )
+        tags$br(),
+        gre_bar_slot(),
+        gre_wait_note(),
+        gre_results(
+          gre_heading("Trend model comparison", "trend"),
+          gre_calculator_loader(uiOutput("gre_trend_table")),
+          tags$hr(),
+          gre_heading("Mann-Kendall test and Sen's slope", "mk"),
+          uiOutput("gre_mk_intro"),
+          gre_calculator_loader(uiOutput("gre_mk_table")),
+          gre_tab_download_ui("trend")
         )
       ),
 
       tabPanel("Instability & Decomposition", value = "Instability", icon = icon("wave-square"),
-        conditionalPanel("output.submitClicked == true",
-          div(class = "gre-styled-results",
-            tags$h3("Instability"),
-            gre_calculator_loader(uiOutput("gre_instab_table")),
-            tags$hr(),
-            tags$h3("Area-yield decomposition"),
-            gre_calculator_loader(uiOutput("gre_decomp_table")),
-            gre_tab_download_ui("instability")
-          )
+        tags$br(),
+        gre_bar_slot(),
+        gre_wait_note(),
+        gre_results(
+          gre_heading("Instability", "instab"),
+          gre_calculator_loader(uiOutput("gre_instab_table")),
+          tags$hr(),
+          gre_heading("Area-yield decomposition", "decomp"),
+          gre_calculator_loader(uiOutput("gre_decomp_table")),
+          gre_tab_download_ui("instability")
         )
       ),
 
       tabPanel("Group Comparison", value = "Groups", icon = icon("chart-bar"),
-        conditionalPanel("output.submitClicked == true",
-          div(class = "gre-styled-results",
-            h3("Group and combined growth"),
-            p("Estimates are descriptive comparisons across groups. If your data contain area and production, the app also derives yield using the supplied units."),
-            uiOutput("gre_group_comparison_table"),
-            gre_tab_download_ui("groups")
-          )
+        tags$br(),
+        gre_bar_slot(),
+        gre_wait_note(),
+        gre_results(
+          gre_heading("Group and combined growth", "groups"),
+          div(class = "gre-note", "Estimates are descriptive comparisons across groups. If your data contain area and production, the app also derives yield using the supplied units."),
+          uiOutput("gre_group_comparison_table"),
+          gre_tab_download_ui("groups")
         )
       ),
-      tabPanel("Plots & Graphs", value = "Plots", icon = icon("chart-line"),
+
+      tabPanel("Plots & Graphs", value = "Plots", icon = icon("chart-area"),
+        tags$br(),
+        gre_wait_note(),
         conditionalPanel("output.submitClicked == true",
           tabsetPanel(id = "gre_plot_tabs", type = "pills",
             tabPanel("Publication Figures", gre_publication_ui()),
@@ -378,11 +437,13 @@ $(document).on('hidden.bs.select', '#gre_series', function () {
             tabPanel("Fitted Trend",
               gre_trend_workspace_ui(),
               gre_interactive_workspace_ui("Interactive Fitted Trend",
-                plotly::plotlyOutput("gre_trend_interactive", height = "460px"))),
+                tagList(uiOutput("gre_trend_note"),
+                        plotly::plotlyOutput("gre_trend_interactive", height = "460px")))),
             tabPanel("Growth Diagnostics",
               gre_interactive_workspace_ui("Growth Diagnostics",
                 tagList(
                   tags$p("The Growth rates table gives the confidence interval, observation count and one-year residual correlation. Correlation is descriptive and uses adjacent calendar years only."),
+                  uiOutput("gre_lag_note"),
                   fluidRow(
                     column(6, plotly::plotlyOutput("gre_residual_plot", height = "360px")),
                     column(6, plotly::plotlyOutput("gre_lag_plot", height = "360px"))
@@ -397,29 +458,36 @@ $(document).on('hidden.bs.select', '#gre_series', function () {
                 selector = uiOutput("gre_group_plot_series"))),
             tabPanel("Decomposition",
               gre_interactive_workspace_ui("Area-Yield Decomposition",
-                plotly::plotlyOutput("gre_decomp_plot", height = "420px")))
+                tagList(uiOutput("gre_decomp_note"),
+                        plotly::plotlyOutput("gre_decomp_plot", height = "420px"))))
           ),
           gre_tab_download_ui("plots")
         )
       ),
+
       tabPanel("Data Quality", value = "DataQuality", icon = icon("clipboard-check"),
-        conditionalPanel("output.submitClicked == true",
-          div(class = "gre-styled-results", h3("Coverage and exclusions"), uiOutput("gre_quality_table"),
-              gre_tab_download_ui("quality"))
+        tags$br(),
+        gre_bar_slot(),
+        gre_wait_note(),
+        gre_results(
+          gre_heading("Coverage and exclusions", "quality"),
+          uiOutput("gre_quality_table"),
+          gre_tab_download_ui("quality")
         )
       ),
 
-      ## Same flow as RBD's Interpretation tab: robot check, button, typewriter
+      ## Same flow as the fsQCA Interpretation tab: robot check, button, typewriter
       ## with Copy / Quick, and the review warning.
-      tabPanel("Interpretation", value = "Interpretation",
-        icon = icon("comment-dots"),
+      tabPanel("Interpretation", value = "Interpretation", icon = icon("grav"),
         tags$br(),
+        gre_wait_note(),
         conditionalPanel(
           condition = "output.submitClicked == true",
           tags$div(id = "var_AI_path_intro_gre",
             tags$h3(
               style = "color: purple; text-align: justify; font-weight: bold;",
-              "Welcome to RAISINS Assistant, your personal statistical interpretation assistant!"),
+              "Welcome to RAISINS Assistant, your personal statistical interpretation assistant!",
+              gre_help_link("interpretation")),
             tags$p(style = "color: blue; text-align: justify;",
               "With RAISINS Assistant, you can receive insightful and accurate interpretations of your data. Whether you're a student, researcher, or simply looking to gain better insights from your data, RAISINS Assistant has got you covered. Click on the checkbox below to ensure you are not a robot.")
           ),
@@ -429,117 +497,78 @@ $(document).on('hidden.bs.select', '#gre_series', function () {
               FALSE)
           ),
           uiOutput("var_AI_path_actionbttn_gre"),
-          tags$style("
-  #loading-spinner_gre {
-    position: absolute;
-    top: 60%;
-    left: 50%;
-    margin-top: -20px;
-    margin-left: -20px;
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid #3498db;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    animation: spin 2s linear infinite;
-  }
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-  #loading-text_gre {
-    position: absolute;
-    top: 70%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 20px;
-    font-weight: bold;
-    text-align: center;
-    color: #3498db;
-  }
-  #output_path_typing_gre {
-    white-space: pre-line;
-  }
-"),
-          conditionalPanel(
-            condition = "output.gre_interpretation_ready && input.checkforAI_gre && document.getElementById('output_path_typing_gre') && document.getElementById('output_path_typing_gre').textContent == ''",
-            tags$div(id = "loading-spinner_gre"),
-            tags$div(id = "loading-text_gre", "Yes boss I'm reading your data, it will take few minutes, please wait...")
-          ),
+          tags$style("#output_path_typing_gre { white-space: pre-line; font-size: 14px; }"),
           tags$br(),
           conditionalPanel(
             condition = "output.gre_interpretation_ready && input.checkforAI_gre",
+            uiOutput("AI_typing_path_gre"),
             wellPanel(
-              uiOutput("AI_typing_path_gre"),
               tags$div(id = "output_path_typing_gre"),
               style = "background-color: #ffe8b8; border: 1px solid #ddd; border-radius: 3px; padding: 15px;"
             )
           ),
           tags$br(),
-          tags$br(),
-          tags$br(),
           uiOutput("var_AI_path_end_gre"),
-          gre_tab_download_ui("interpretation"),
-          tags$br(),
-          tags$br()
+          gre_tab_download_ui("interpretation")
         )
       ),
 
-      ## Same look as RBD's raisins_full_report_ui(); the body renders only after Run.
-      tabPanel("Statistical Report", value = "Report",
-        icon = icon("file-lines"),
-        tags$style(HTML(paste0(
-          '#gre_report_body{max-width:1180px;margin:24px auto 36px;line-height:1.55;} ',
-          '.stat-report-heading{font-family:Cambria,Georgia,serif;font-size:29px;color:#293c31;margin:0 0 10px;} ',
-          '.stat-report-intro{color:#59655e;margin-bottom:24px;max-width:960px;} ',
-          '.stat-report-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(285px,1fr);gap:24px;align-items:start;} ',
-          '.stat-report-panel{border:1px solid #dce3dc;border-radius:6px;padding:20px 22px;background:#fff;min-width:0;} ',
-          '.gre-report-details{max-width:1180px;margin:24px auto 0;gap:20px;align-items:stretch;} ',
-          '.gre-report-details .stat-report-panel{min-width:0;border-radius:14px;border:1px solid #d7e5de;background:linear-gradient(155deg,#f4faf7 0%,#fff 55%);box-shadow:0 5px 18px rgba(35,76,59,.07);} ',
-          '.gre-report-details .stat-report-panel legend{padding:4px 10px;border-radius:8px;background:#e7f3ec;color:#28563f;} ',
-          '.gre-report-details .control-label{color:#314b3f;font-weight:600;} ',
-          '.gre-report-details .form-control{border:1px solid #c9d9d0;border-radius:8px;box-shadow:none;} ',
-          '.gre-report-details .form-control:focus{border-color:#388873;box-shadow:0 0 0 2px rgba(56,136,115,.16);} ',
-          '.stat-report-panel legend{font-family:Cambria,Georgia,serif;font-size:19px;font-weight:600;color:#31483b;border:0;margin:0 0 4px;padding:0;width:auto;} ',
-          '.stat-report-note{font-size:13px;color:#6b756f;margin-bottom:16px;} ',
-          '.stat-report-tables .shiny-options-group{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px;} ',
-          '.stat-report-panel .checkbox{margin:0;padding:11px 10px;border:1px solid #e5e9e4;border-radius:4px;background:#fcfdfb;} ',
-          '.stat-report-panel .checkbox:focus-within,.stat-report-panel .checkbox:hover{border-color:#a8bcae;background:#f5f8f3;} ',
-          '.stat-report-panel .checkbox label{padding-left:24px;display:block;line-height:1.45;} ',
-          '.stat-report-panel input[type=checkbox]{accent-color:#276344;margin-top:5px;} ',
-          '.stat-report-option-title{display:block;font-size:15px;font-weight:600;color:#304338;} ',
-          '.stat-report-option-description{display:block;font-size:12px;color:#738078;font-weight:400;margin-top:3px;} ',
-          '.stat-report-sections .shiny-options-group{display:grid;gap:9px;} ',
-          '.stat-report-export{margin-top:24px;padding:18px 22px;border:1px solid #cbd7cd;border-radius:4px;background:#f6f8f4;display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;} ',
-          '.stat-report-export .shiny-input-container{margin-bottom:0;} .stat-report-export .btn{padding:11px 22px;font-weight:600;} ',
-          '@media(max-width:850px){.stat-report-grid{grid-template-columns:1fr}.stat-report-export{justify-content:center}} ',
-          '@media(max-width:520px){.stat-report-tables .shiny-options-group{grid-template-columns:1fr}.stat-report-panel{padding:16px}}'))),
+      ## Same structure as the fsQCA Statistical Report: heading and intro, panels
+      ## side by side, export bar at the bottom.
+      tabPanel("Statistical Report", value = "Report", icon = icon("file-lines"),
+        gre_report_css(),
         conditionalPanel("output.submitClicked == true",
-          div(class = "stat-report-grid gre-report-details",
-            tags$fieldset(class = "stat-report-panel",
-              tags$legend(icon("heading"), " Report header"),
-              p(class = "stat-report-note", "Set the title, branding, and logo placement for your report."),
-              textInput("gre_report_title", "Report title", placeholder = "Growth Rate and Trend Analysis Report"),
-              radioButtons("gre_header_mode", "Branding", c("Statoberry" = "default",
-                           "No header" = "none", "Custom header" = "custom"), inline = TRUE),
-              conditionalPanel("input.gre_header_mode == 'custom'",
-                textInput("gre_header_text", "Organisation or report header", placeholder = "e.g. Research and Analytics Unit"),
-                fileInput("gre_header_logo", "Logo (optional, PNG or JPEG, up to 5 MB)",
-                          accept = c("image/png", "image/jpeg", ".png", ".jpg", ".jpeg")),
-                selectInput("gre_logo_alignment", "Logo alignment", c("Left" = "left", "Center" = "center",
-                            "Right" = "right"), selected = "center"))),
-            tags$fieldset(class = "stat-report-panel",
-              tags$legend(icon("database"), " Data provenance"),
-              p(class = "stat-report-note", "Record where the data came from and how to read the values."),
-              textInput("gre_report_source", "Data source or publication",
-                        placeholder = "e.g. Annual monitoring report, 2014–2023"),
-              textInput("gre_report_units", "Units by series",
-                        placeholder = "e.g. Count: cases; Revenue: USD thousands; Rate: %"),
-              textAreaInput("gre_report_changes", "Known changes in coverage or reporting definitions", rows = 2,
-                            placeholder = "e.g. Two sites were added in 2020; reporting definitions stayed the same."))
-          )
+          div(class = "stat-report-body",
+            tags$h3(class = "stat-report-heading", "Statistical Analysis Report", gre_help_link("report")),
+            tags$p(class = "stat-report-intro",
+              "Prepare a consolidated account of the growth and trend analysis: the tables you select, each with a note, the figures and a written interpretation. Font, table style and digits follow the settings bar on the results tabs."),
+            div(class = "stat-report-grid gre-report-details",
+              tags$fieldset(class = "stat-report-panel",
+                tags$legend(icon("heading"), " Report header"),
+                p(class = "stat-report-note", "Set the title, branding, and logo placement for your report."),
+                textInput("gre_report_title", "Report title", placeholder = "Growth Rate and Trend Analysis Report", width = "100%"),
+                radioButtons("gre_header_mode", "Branding", c("Statoberry" = "default",
+                             "No header" = "none", "Custom header" = "custom"), inline = TRUE),
+                conditionalPanel("input.gre_header_mode == 'custom'",
+                  textInput("gre_header_text", "Organisation or report header", placeholder = "e.g. Research and Analytics Unit", width = "100%"),
+                  fileInput("gre_header_logo", "Logo (optional, PNG or JPEG, up to 5 MB)",
+                            accept = c("image/png", "image/jpeg", ".png", ".jpg", ".jpeg")),
+                  selectInput("gre_logo_alignment", "Logo alignment", c("Left" = "left", "Center" = "center",
+                              "Right" = "right"), selected = "center"))),
+              tags$fieldset(class = "stat-report-panel",
+                tags$legend(icon("database"), " Data provenance"),
+                p(class = "stat-report-note", "Record where the data came from and how to read the values."),
+                textInput("gre_report_source", "Data source or publication", width = "100%",
+                          placeholder = "e.g. Annual monitoring report, 2014-2023"),
+                textInput("gre_report_units", "Units by series", width = "100%",
+                          placeholder = "e.g. Count: cases; Revenue: USD thousands; Rate: %"),
+                textAreaInput("gre_report_changes", "Known changes in coverage or reporting definitions",
+                              rows = 2, width = "100%",
+                              placeholder = "e.g. Two sites were added in 2020; reporting definitions stayed the same."))),
+            uiOutput("gre_report_body"))
         ),
-        uiOutput("gre_report_body")
+        tags$div(style = "margin-top:16px;", gre_wait_note())
+      )
+    ),
+
+    # Shared result settings: one copy, moved into the active results pill by
+    # the script in gre_frame_js() so every results pill shows it.
+    div(
+      id = "gre_shared_controls", style = "display:none;",
+      conditionalPanel(
+        "output.submitClicked == true", id = "gre_results_bar",
+        wellPanel(
+          style = "background-color:#eef2da; border:1px solid #ddd; border-radius:3px; padding:15px;",
+          fluidRow(
+            column(2, numericInput("gre_digits", "Digits after decimal", value = 3, min = 0, max = 6)),
+            column(2, selectInput("gre_font", "Select Font:",
+                                  choices = raisins_font_choices, selected = "cambria")),
+            column(2, selectInput("gre_table_style", "Table Style:",
+                                  choices = raisins_tstyle_choices, selected = raisins_tstyle_value(NULL))),
+            column(3, selectInput("gre_alpha", HTML("Level of significance (&alpha;):"),
+                                  choices = c("0.05", "0.01", "0.10"), selected = "0.05"))
+          )
+        )
       )
     )
   )
