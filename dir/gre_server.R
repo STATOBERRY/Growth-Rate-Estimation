@@ -215,6 +215,16 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
                        "dataset2.csv" = "Coconut – District panel",
                        "dataset3.csv" = "Coconut – Yield series")
 
+  observeEvent(input$gre_upload_help, {
+    showModal(modalDialog(
+      title = "Help with arranging your data",
+      tags$p("If you are unsure how to arrange your data, see the model files in the ", tags$strong("Datasets"), " tab."),
+      tags$p("If your table has a different layout, open ", tags$strong("Arrange Data"), " and choose ",
+             tags$strong("Import and reshape"), ". Upload your file, review the preview, and download the reshaped CSV. Then upload that CSV here."),
+      easyClose = TRUE, footer = modalButton("Close")
+    ))
+  })
+
   output$uploadfile <- renderUI({
     req(current_subscriber())
 
@@ -227,7 +237,7 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
         # Fake fileInput with alert trigger
         div(
           class = "form-group shiny-input-container",
-          tags$label("Upload data file Excel or CSV here \U0001F447"),
+          tags$label("Upload Excel or CSV"),
           div(
             class = "input-group",
             tags$label(
@@ -250,7 +260,7 @@ gre_server <- function(input, output, session, shared, support_send = NULL) {
       )
     } else {
       fileInput("rcbd_file1",
-                "Upload data file Excel or CSV here \U0001F447",
+                "Upload Excel or CSV",
                 accept = c(
                   "text/csv",
                   "text/comma-separated-values,text/plain",

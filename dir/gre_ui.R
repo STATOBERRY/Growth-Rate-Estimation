@@ -233,7 +233,12 @@ $(document).on('hidden.bs.select', '#gre_series', function () {
         tags$br(),
         sidebarPanel(
           id = "sidebar",
-          uiOutput("uploadfile"),
+          div(style = "position: relative;",
+            actionButton("gre_upload_help", label = NULL, icon = icon("circle-question"),
+              class = "btn-link btn-xs", title = "Help with data upload",
+              `aria-label` = "Help with data upload", style = "position: absolute; right: 0; top: 0; z-index: 1;"),
+            uiOutput("uploadfile")
+          ),
           uiOutput("gre_year_ui"),
           uiOutput("gre_series_ui"),
           uiOutput("gre_group_ui"),
