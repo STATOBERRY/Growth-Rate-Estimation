@@ -1,5 +1,5 @@
 # =============================================================================
-# gre_chat_context.R - RAISINS Growth Rate Estimation
+# gre_chat_context.R - RAISINS Growth Rate Estimation and Trend Analysis
 # =============================================================================
 # Results summary for RA-One (as fsqca_chat_context.R): NULL until Run Analysis!
 # has produced results, and again as soon as the data or columns change.
@@ -14,7 +14,7 @@ gre_chat_context <- function(results) {
     year <- suppressWarnings(as.numeric(r$raw[[r$year_col]]))
     year <- year[is.finite(year)]
     payload <- list(
-      schema = "RAISINS Growth Rate Estimation reference results v1",
+      schema = "RAISINS Growth Rate Estimation and Trend Analysis reference results v1",
       level_of_significance = r$alpha,
       series = r$series,
       first_year = if (length(year)) min(year) else NULL,

@@ -1,5 +1,5 @@
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-##         server of RAISINS Growth Rate Estimation  (Single Universe)       ----
+##         server of RAISINS Growth Rate Estimation and Trend Analysis  (Single Universe)       ----
 ##  The shared login layer (demo / individual / institutional OTP login,
 ##  domain + website SSO, stay-signed-in, forgot password, license /
 ##  subscription / version dialogs) lives in greyskull. This app supplies the
@@ -11,7 +11,7 @@ server <- function(input, output, session) {
   core   <- raisins_login_server(input, output, session)
   shared <- core$shared
 
-  ## Growth Rate Estimation analysis engine
+  ## Growth Rate Estimation and Trend Analysis analysis engine
   gre_support <- gre_server(input, output, session, shared,
                             support_send = core$support_send)
 

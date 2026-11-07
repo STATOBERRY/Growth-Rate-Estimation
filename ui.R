@@ -1,5 +1,5 @@
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-##         ui of RAISINS Growth Rate Estimation  (Single Universe)           ----
+##         ui of RAISINS Growth Rate Estimation and Trend Analysis  (Single Universe)           ----
 ##  Page head, loading screen, logout, navbar title and the Welcome tab come
 ##  from greyskull::raisins_page(); only this app's own tabs are here.
 
@@ -7,6 +7,8 @@
 
 ui <- raisins_app_ui(
   head = tags$head(
+    ## Navbar title colour, as in Regression (greyskull hard-codes #e38f12 inline).
+    tags$style(HTML('.navbar span[style*="#e38f12"] { color: #FFFFFF !important; }')),
     ## Calculator loader for results tables (same rules as RAISINS RBD's ui.R).
     tags$style(HTML(r"---(
 .rcbd-calculator-loader > .shiny-loader-output-container > .load-container {

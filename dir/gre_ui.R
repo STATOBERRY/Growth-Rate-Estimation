@@ -1,5 +1,5 @@
 ## ============================================================================
-##  RAISINS Growth Rate Estimation - Quick Tour  (ported from RAISINS RBD)
+##  RAISINS Growth Rate Estimation and Trend Analysis - Quick Tour  (ported from RAISINS RBD)
 ##  Tour options, events and look come from greyskull (raisins_run_tour);
 ##  only the steps and the welcome / complete / skipped boxes are this app's.
 ## ============================================================================
@@ -23,7 +23,7 @@ gre_welcome_overlay <- function() {
               HTML("Welcome! &#128075;"),
               style = "color:#6f2c91; margin-bottom:6px;"),
 
-      tags$h4("Welcome to RAISINS Growth Rate Estimation!",
+      tags$h4("Welcome to RAISINS Growth Rate Estimation and Trend Analysis!",
               style = "color:#444; margin-bottom:10px; font-weight:normal;"),
 
       tags$p("Would you like a quick guided tour of the app before you begin?",
@@ -49,7 +49,7 @@ gre_welcome_overlay <- function() {
 }
 
 ## ============================================================================
-##  RAISINS Growth Rate Estimation - Analysis tab UI  (gre_ui)
+##  RAISINS Growth Rate Estimation and Trend Analysis - Analysis tab UI  (gre_ui)
 ##  Layout follows RAISINS fsQCA: centred pills, the sidebar on the first pill
 ##  only, full-width results with one shared settings bar on the results pills.
 ##  Shared input IDs reused so the greyskull invoice / View Data / login wiring
@@ -74,10 +74,10 @@ gre_calculator_loader <- function(output) {
 }
 
 gre_tab_download_ui <- function(key) {
-  div(style = "text-align: center; margin: 20px 0;",
-      radioButtons(paste0("gre_format_", key), "Report format:",
+  div(class = "gre-tab-export",
+      radioButtons(paste0("gre_format_", key), "Document format",
         choices = c("HTML", "PDF", "Word", "Excel"), inline = TRUE),
-      downloadButton(paste0("gre_download_", key), "Download report"))
+      downloadButton(paste0("gre_download_", key), "Download this section", class = "btn-success"))
 }
 
 ## ---- Small page pieces shared by the pills (same look as RAISINS fsQCA) ------
@@ -133,11 +133,29 @@ ul.nav-pills { display: flex !important; justify-content: center !important; fle
 #gre_import_status.shiny-output-error-validation { visibility: visible; color: #a94442; font-weight: 600; }
 
 /* Plot picture buttons */
+.gre-plot-group { text-align:center; font-weight:700; font-size:17px; color:#804303; margin:22px 0 12px; }
 .gre-plot-icons { display:flex; flex-wrap:wrap; justify-content:center; gap:18px 10px; max-width:1000px; margin:0 auto; }
 .gre-plot-icon { text-align:center; width:150px; }
 
+/* Download bar on the results tabs, the same look as the Statistical Report's */
+.gre-tab-export { margin:24px 0 8px; padding:18px 22px; border:1px solid #cbd7cd; border-radius:4px; background:#f6f8f4;
+                  display:flex; align-items:center; justify-content:space-between; gap:16px 24px; flex-wrap:wrap; }
+.gre-tab-export .shiny-input-container { margin-bottom:0; width:auto; }
+.gre-tab-export .btn { padding:11px 22px; font-weight:600; }
+@media (max-width:850px) { .gre-tab-export { justify-content:center; text-align:center; } }
+
+/* A plot's explanation of why it cannot be drawn (other output errors stay hidden). */
+.raisins-plot-canvas .shiny-output-error-validation { visibility: visible; color: #7a201b; padding: 26px 8px; height: auto !important; font-size: 15px; }
+.raisins-plot-canvas .shiny-output-error-validation:before { display: none; }
+
+/* How these were calculated */
+.gre-formulas { margin:6px 0 14px; border:1px solid #e3e3e3; border-radius:6px; background:#fafafa; }
+.gre-formulas > summary { cursor:pointer; padding:8px 14px; font-weight:600; color:#176603; }
+.gre-formula { padding:10px 14px; border-top:1px solid #ececec; font-size:14px; }
+.gre-formula-eq { overflow-x:auto; }
+
 /* Notes and data checks */
-.gre-busy { display:none; position:fixed; right:22px; bottom:22px; z-index:2000;
+.gre-busy { display:none; position:fixed; right:110px; bottom:22px; z-index:2000;
             background:#fff7db; border:1px solid #f0df75; border-radius:6px;
             padding:8px 14px; font-size:13px; box-shadow:0 2px 8px rgba(0,0,0,.15); }
 .gre-datacheck { border:1px solid #f0d58a; background:#fffbea; border-radius:6px;
@@ -321,7 +339,7 @@ $(document).on('hidden.bs.select', '#gre_series', function () {
 
 gre_ui <- function() {
   fluidPage(
-    titlePanel(tags$div(tags$b("Growth Rate Estimation & Trend Analysis", style = "color:#000000"))),
+    titlePanel(tags$div(tags$b("Growth Rate Estimation and Trend Analysis", style = "color:#000000"))),
     # Dynamic login page----
     useShinyjs(),
     introjsUI(),
@@ -334,6 +352,7 @@ gre_ui <- function() {
     ),
     tags$head(gre_frame_css(), gre_frame_js()),
     gre_welcome_overlay(),
+    gre_raone_bubble(),
     div(id = "gre_busy", class = "gre-busy",
         icon("spinner", class = "fa-spin"), " Working... large data or many series can take a while."),
     # Error assistance (RAISINS error support), shown above the pills
@@ -448,51 +467,76 @@ gre_ui <- function() {
         tags$br(),
         gre_wait_note(),
         conditionalPanel("output.submitClicked == true",
+          div(class = "gre-plot-group", "Publication figures"),
           div(class = "gre-plot-icons",
-            gre_icon_button("gre_show_pub", "Summary.png", "Publication Figures"),
+            gre_icon_button("gre_show_fig_trend", "Linecon.png", "Observed and Fitted Trend"),
+            gre_icon_button("gre_show_fig_growth", "Summary.png", "Compound Growth"),
+            gre_icon_button("gre_show_fig_instab", "Dist.png", "Instability"),
+            gre_icon_button("gre_show_fig_contrib", "Bar.png", "Area-Yield Contributions")
+          ),
+          div(class = "gre-plot-group", "Explore and check"),
+          div(class = "gre-plot-icons",
             gre_icon_button("gre_show_explore", "Pair.png", "Explore Data"),
-            gre_icon_button("gre_show_trend", "Linecon.png", "Fitted Trend"),
+            gre_icon_button("gre_show_trend", "Line.png", "All Fitted Trends"),
             gre_icon_button("gre_show_diag", "QQ.png", "Growth Diagnostics"),
             gre_icon_button("gre_show_group", "Interaction.png", "Group Plots"),
-            gre_icon_button("gre_show_decomp", "Bar.png", "Decomposition")
+            gre_icon_button("gre_show_decomp", "Box.png", "Decomposition")
+          ),
+          div(class = "gre-plot-group", "Methods from recent studies"),
+          div(class = "gre-plot-icons",
+            gre_icon_button("gre_show_period", "Violin.png", "Period-Wise Growth"),
+            gre_icon_button("gre_show_map", "3DPlot.png", "Growth-Instability Map"),
+            gre_icon_button("gre_show_change", "Interaction2.png", "Change Point"),
+            gre_icon_button("gre_show_ita", "Circular.png", "Innovative Trend"),
+            gre_icon_button("gre_show_sen", "3DLine.png", "Sen's Slope Trend")
           ),
           tags$br(),
-          gre_plot_panel("pub", gre_publication_ui()),
-          gre_plot_panel("explore",
-              gre_interactive_workspace_ui("Explore Annual Series",
-                plotly::plotlyOutput("gre_explore_plot", height = "500px"),
-                selector = tagList(
-                  selectInput("gre_explore_kind", "Chart",
-                    c("Indexed trajectories" = "indexed", "Annual change heatmap" = "heatmap",
-                      "Paired-series scatter" = "scatter")),
-                  uiOutput("gre_explore_options")
-                ))),
-          gre_plot_panel("trend",
-              gre_trend_workspace_ui(),
-              gre_interactive_workspace_ui("Interactive Fitted Trend",
-                tagList(uiOutput("gre_trend_note"),
-                        plotly::plotlyOutput("gre_trend_interactive", height = "460px")))),
-          gre_plot_panel("diag",
-              gre_interactive_workspace_ui("Growth Diagnostics",
-                tagList(
-                  tags$p("The Growth rates table gives the confidence interval, observation count and one-year residual correlation. Correlation is descriptive and uses adjacent calendar years only."),
-                  uiOutput("gre_lag_note"),
-                  fluidRow(
-                    column(6, plotly::plotlyOutput("gre_residual_plot", height = "360px")),
-                    column(6, plotly::plotlyOutput("gre_lag_plot", height = "360px"))
-                  )),
-                selector = uiOutput("gre_diagnostic_series"))),
-          gre_plot_panel("group",
-              gre_interactive_workspace_ui("Group Plots",
-                fluidRow(
-                  column(6, plotly::plotlyOutput("gre_group_forest", height = "420px")),
-                  column(6, plotly::plotlyOutput("gre_group_paths", height = "420px"))
-                ),
-                selector = uiOutput("gre_group_plot_series"))),
-          gre_plot_panel("decomp",
-              gre_interactive_workspace_ui("Area-Yield Decomposition",
-                tagList(uiOutput("gre_decomp_note"),
-                        plotly::plotlyOutput("gre_decomp_plot", height = "420px")))),
+          gre_plot_panel("fig_trend", gre_ws_ui("fig_trend", gre_ws_titles[["fig_trend"]],
+            selector = uiOutput("gre_ws_fig_trend_series_ui"))),
+          gre_plot_panel("fig_growth", gre_ws_ui("fig_growth", gre_ws_titles[["fig_growth"]],
+            selector = uiOutput("gre_ws_fig_growth_series_ui"))),
+          gre_plot_panel("fig_instab", gre_ws_ui("fig_instab", gre_ws_titles[["fig_instab"]])),
+          gre_plot_panel("fig_contrib", gre_ws_ui("fig_contrib", gre_ws_titles[["fig_contrib"]])),
+          gre_plot_panel("explore", gre_ws_ui("explore", "Explore Annual Series",
+            selector = tagList(
+              selectInput("gre_ws_explore_kind", "Chart",
+                c("Indexed trajectories" = "indexed", "Annual change heatmap" = "heatmap",
+                  "Paired-series scatter" = "scatter")),
+              uiOutput("gre_ws_explore_options")))),
+          gre_plot_panel("trend", gre_ws_ui("trend", "Fitted Trend Plot",
+            selector = uiOutput("gre_ws_trend_series_ui"),
+            extra = tagList(
+              selectInput("gre_ws_trend_layout", "Several series",
+                c("Automatic: separate panels when their scales differ" = "auto",
+                  "One shared axis" = "same", "A separate panel for each" = "panels"), selectize = FALSE),
+              fluidRow(
+                column(6, checkboxInput("gre_ws_trend_points", "Show observed values", TRUE)),
+                column(6, checkboxInput("gre_ws_trend_fit", "Show fitted trend line", TRUE)))))),
+          gre_plot_panel("diag", gre_ws_ui("diag", "Growth Diagnostics", series_labels = FALSE,
+            selector = tagList(
+              selectInput("gre_ws_diag_kind", "Chart",
+                c("Residuals over time" = "residual", "One-year residual lag" = "lag")),
+              uiOutput("gre_ws_diag_series_ui")))),
+          gre_plot_panel("group", gre_ws_ui("group", "Group Plots",
+            selector = tagList(
+              selectInput("gre_ws_group_kind", "Chart",
+                c("Compound growth by group" = "forest", "Group time series" = "paths")),
+              uiOutput("gre_ws_group_series_ui")))),
+          gre_plot_panel("decomp", gre_ws_ui("decomp", "Area-Yield Decomposition",
+            extra = checkboxInput("gre_ws_decomp_values", "Show values on the bars", TRUE))),
+          gre_plot_panel("period", gre_ws_ui("period", gre_ws_titles[["period"]],
+            selector = tagList(
+              selectInput("gre_ws_period_kind", "Measure",
+                c("Compound growth rate" = "cgr", "Instability (Cuddy-Della Valle)" = "cdvi")),
+              uiOutput("gre_ws_period_breaks_ui")))),
+          gre_plot_panel("map", gre_ws_ui("map", gre_ws_titles[["map"]],
+            selector = uiOutput("gre_ws_map_series_ui"))),
+          gre_plot_panel("change", gre_ws_ui("change", gre_ws_titles[["change"]], series_labels = FALSE,
+            selector = uiOutput("gre_ws_change_series_ui"))),
+          gre_plot_panel("ita", gre_ws_ui("ita", gre_ws_titles[["ita"]], series_labels = FALSE,
+            selector = uiOutput("gre_ws_ita_series_ui"))),
+          gre_plot_panel("sen", gre_ws_ui("sen", gre_ws_titles[["sen"]], series_labels = FALSE,
+            selector = uiOutput("gre_ws_sen_series_ui"))),
           gre_tab_download_ui("plots")
         )
       ),
@@ -558,7 +602,7 @@ gre_ui <- function() {
               tags$fieldset(class = "stat-report-panel",
                 tags$legend(icon("heading"), " Report header"),
                 p(class = "stat-report-note", "Set the title, branding, and logo placement for your report."),
-                textInput("gre_report_title", "Report title", placeholder = "Growth Rate and Trend Analysis Report", width = "100%"),
+                textInput("gre_report_title", "Report title", placeholder = "Growth Rate Estimation and Trend Analysis Report", width = "100%"),
                 radioButtons("gre_header_mode", "Branding", c("Statoberry" = "default",
                              "No header" = "none", "Custom header" = "custom"), inline = TRUE),
                 conditionalPanel("input.gre_header_mode == 'custom'",

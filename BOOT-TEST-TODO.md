@@ -1,4 +1,4 @@
-# Growth Rate Estimation — build notes, boot test & TODO
+# Growth Rate Estimation and Trend Analysis — build notes, boot test & TODO
 
 New RAISINS module created on **2026-11-04** by cloning the greyskull-based
 `rm-anova-oneway` app and swapping its ANOVA engine for a growth-rate / trend

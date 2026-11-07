@@ -9,7 +9,7 @@ rcbd_dataset_server = function(input, output, session, error_support=NULL) {
     HTML(
       '<div style="font-family: Arial, sans-serif; background-color: #ffffff; padding: 20px; margin: 0 auto; max-width: 800px;">
     <h2 style="color: #4CAF50; text-align: center;">Model Datasets</h2>
-    <p>Below are example datasets that illustrate how to arrange <strong>time-series</strong> data for the Growth Rate Estimation module. Structure your own file in a similar format for smooth analysis. You can upload any of these directly into the Analysis tab to test the app.</p>
+    <p>Below are example datasets that illustrate how to arrange <strong>time-series</strong> data for the Growth Rate Estimation and Trend Analysis module. Structure your own file in a similar format for smooth analysis. You can upload any of these directly into the Analysis tab to test the app.</p>
     <h3 style="color: #333;">Dataset 1: Production &amp; Area (national series)</h3>
     <p>A single annual series with one <strong>Year</strong> column followed by numeric columns <strong>Area</strong> (&#39;000 ha), <strong>Production</strong> (million nuts) and <strong>Yield</strong> (nuts/ha), one row per year (2001&ndash;2023).</p>
     <p>Keep column names simple and free of spaces or special characters. Having columns named <strong>Area</strong> and <strong>Production</strong> enables the automatic <strong>area-yield decomposition</strong>. You can download this dataset as CSV using the link below:</p>

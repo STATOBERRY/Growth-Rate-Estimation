@@ -2994,7 +2994,7 @@
         "Package": "greyskull",
         "Type": "Package",
         "Title": "Shared Login, Session, Support and Page Shell for RAISINS Shiny\nApps",
-        "Version": "1.0.6",
+        "Version": "1.0.8",
         "Authors@R": "person(\"Pratheesh P.\", \"Gopinath\", email = \"pratheesh.pg@kau.in\", role = c(\"aut\", \"cre\"))",
         "URL": "https://github.com/STATOBERRY/greyskull",
         "BugReports": "https://github.com/STATOBERRY/greyskull/issues",
@@ -3002,24 +3002,24 @@
         "License": "file LICENSE",
         "Encoding": "UTF-8",
         "Depends": "R (>= 4.1)",
-        "Imports": "shiny, shinyjs, shinyWidgets, shinyalert, shinybusy,\nshinymanager, shinythemes, blastula, htmltools, httr, jsonlite,\ndigest, openssl, data.table, lubridate, base64enc, curl, later,\nglue, utils, stats, knitr, openxlsx, xml2, zip, magrittr,\ndplyr, kableExtra, formattable, shinycssloaders, rmarkdown,\nrintrojs, gtExtras, RColorBrewer, scales, grDevices, ggplot2,\nrlang, viridisLite",
+        "Imports": "shiny, shinyjs, shinyWidgets, shinyalert, shinybusy,\nshinymanager, shinythemes, blastula, htmltools, httr, jsonlite,\ndigest, openssl, data.table, readxl, lubridate, base64enc,\ncurl, later, glue, utils, stats, knitr, openxlsx, xml2, zip,\nmagrittr, dplyr, kableExtra, formattable, shinycssloaders,\nshinycustomloader, rmarkdown, rintrojs, gtExtras, RColorBrewer,\nscales, grDevices, ggplot2, rlang, viridisLite",
         "Suggests": "testthat (>= 3.0.0)",
         "Config/testthat/edition": "3",
         "RemoteType": "github",
         "RemoteHost": "api.github.com",
         "RemoteRepo": "greyskull",
         "RemoteUsername": "STATOBERRY",
-        "RemoteRef": "6b6df383bde135c21040374daf0825b821896a89",
-        "RemoteSha": "6b6df383bde135c21040374daf0825b821896a89",
+        "RemoteRef": "main",
+        "RemoteSha": "ffbb0195682b1d35355180eb7426217f696a4d32",
         "GithubRepo": "greyskull",
         "GithubUsername": "STATOBERRY",
-        "GithubRef": "6b6df383bde135c21040374daf0825b821896a89",
-        "GithubSHA1": "6b6df383bde135c21040374daf0825b821896a89",
+        "GithubRef": "main",
+        "GithubSHA1": "ffbb0195682b1d35355180eb7426217f696a4d32",
         "NeedsCompilation": "no",
-        "Packaged": "2026-11-05 10:05:13 UTC; user",
+        "Packaged": "2026-11-07 06:20:05 UTC; user",
         "Author": "Pratheesh P. Gopinath [aut, cre]",
         "Maintainer": "Pratheesh P. Gopinath <pratheesh.pg@kau.in>",
-        "Built": "R 4.5.2; ; 2026-11-05 10:05:15 UTC; windows"
+        "Built": "R 4.5.2; ; 2026-11-07 06:20:07 UTC; windows"
       }
     },
     "gridExtra": {
@@ -7022,10 +7022,10 @@
       "checksum": "a23929704d57da291c548874f14cef77"
     },
     ".Rprofile": {
-      "checksum": "c73b5d277a4a822069887e10842116bc"
+      "checksum": "4cac743d83dad7d8085e0e415ca5a268"
     },
     "BOOT-TEST-TODO.md": {
-      "checksum": "ab28e6230e3fe464d7af4bcdabd310ff"
+      "checksum": "a81e2b8a567f074aedbbf065ac13e743"
     },
     "data/dataset1.csv": {
       "checksum": "642f9dd70510b9f7c7805aaf2ec7f324"
@@ -7070,13 +7070,16 @@
       "checksum": "281434a59b1e3e6f4cfb88c603b2a902"
     },
     "dir/AI/gre_chat_context.R": {
-      "checksum": "a90fc3f78d93548a306a6210960438d6"
+      "checksum": "fe525246a31b331aca2cde40d9ec01f9"
     },
     "dir/AI/gre_chat_server.R": {
-      "checksum": "32929f1ffd3d42c577aa373073aeb071"
+      "checksum": "30769b3293c765aba294bd021fbf61dc"
     },
     "dir/AI/gre_prompt.R": {
-      "checksum": "e8c8d73a75a9ae48547c9f48ac9a0df7"
+      "checksum": "9a9fe5738966c7d8692a6a2a101254de"
+    },
+    "dir/AI/gre_raone_bubble.R": {
+      "checksum": "1ba69f562481808b0a8237061fe99bf2"
     },
     "dir/AI/rcbd_ai_plot.R": {
       "checksum": "aa497d0cf0b1b545164325d331e20c60"
@@ -7091,28 +7094,31 @@
       "checksum": "729448570a359b89febc3ed931adb630"
     },
     "dir/gre_help.R": {
-      "checksum": "281d67634df8a2e98aa739d1dd3f4348"
+      "checksum": "e63efa076af245f37eb41c371271911f"
+    },
+    "dir/gre_import.R": {
+      "checksum": "75f9a3d95d5722806a278c3c7c2014aa"
     },
     "dir/gre_plot_workspace.R": {
-      "checksum": "1893437103377ac2ec587665e23b21dd"
+      "checksum": "1bab4d325191392256d8c0a74dae0744"
     },
     "dir/gre_server.R": {
-      "checksum": "b4578b9d3a7ce62ea70e804a3885a577"
+      "checksum": "d9d3b0b4a18b496f46a247e6abdfa142"
     },
     "dir/gre_ui.R": {
-      "checksum": "00e928076e93fbbf7b19178b176ac498"
+      "checksum": "a60eb0dce81bd200c4954746559c834e"
     },
     "dir/rcbd_dataset_server.R": {
-      "checksum": "c6a83523fe10c03414ecb225e28d69ce"
+      "checksum": "bb430862d904428457ad7d5234ceb2d3"
     },
     "dir/rcbd_dataset_ui.R": {
       "checksum": "aaf7447a39d270b91a76f18dbdba22e8"
     },
     "dir/rcbd_gen_server.R": {
-      "checksum": "e10d5effaed929d03bd7e3f07dcf55c7"
+      "checksum": "64a465fbf7d31de2df76795e1ebe3f24"
     },
     "dir/rcbd_gen_ui.R": {
-      "checksum": "e68fc9304ba2d7295e3f1b610cc6034f"
+      "checksum": "364a851299114c8749f52d82be25f707"
     },
     "Dockerfile": {
       "checksum": "a26e08266cb2234798f5ee2097205ee3"
@@ -7121,10 +7127,10 @@
       "checksum": "f3aa53a1c5f2d5b212767b4597c8be07"
     },
     "global.R": {
-      "checksum": "7c3c3ce859c320817ed08ccb7857a899"
+      "checksum": "945ee269601203a6adfb81f550d32508"
     },
     "growth_rate_report.Rmd": {
-      "checksum": "2b64b8e53d5a98c9bcb1766552889218"
+      "checksum": "401a7332bb79ffd6fa67c2a3f9e076c1"
     },
     "invoice.Rmd": {
       "checksum": "38c9efb52820de058d10ac654760b29a"
@@ -7135,14 +7141,17 @@
     "rcbd_report1.Rmd": {
       "checksum": "e715f43ae64ffee623c087637e72a345"
     },
+    "Rplots.pdf": {
+      "checksum": "6cc4f3fc3f8af249b4738fa6e2f36b0b"
+    },
     "server.R": {
-      "checksum": "04936ff4fbdb05d5d6c6705a293edb63"
+      "checksum": "d9a02fb998b4a802c552058817472663"
     },
     "styles.docx": {
       "checksum": "b1af376bb5290c98eb7ae97ae1d8d036"
     },
     "ui.R": {
-      "checksum": "6858f8a8294cad1e32537ba5b3a73fd2"
+      "checksum": "e8fcfa9694a8c1ce8975df28fe544d8a"
     },
     "www/3DLine.png": {
       "checksum": "5015701ff34088c0e470d3fea23f3283"
@@ -7172,7 +7181,7 @@
       "checksum": "5e014f75a01c1339d82fd4ac4bfed75b"
     },
     "www/dataprep_gre.html": {
-      "checksum": "bbfb315082008737ff1cacc43d554de3"
+      "checksum": "65b285b5e7cb731a9456af8de01c2175"
     },
     "www/dataprep_rcbd.html": {
       "checksum": "90cd1a86b5b3bcf5a90668e436cd0c6e"
@@ -7264,8 +7273,11 @@
     "www/footer.jpg": {
       "checksum": "82b260a7c5be158d1bd82f259e8d6338"
     },
+    "www/gre_logo.png": {
+      "checksum": "958b4838665aaf0c5cd1a652cdb76762"
+    },
     "www/growthrates.html": {
-      "checksum": "9be4048cc2ad125ab5e026531aa19681"
+      "checksum": "0a08a3e9e5286175317edcb157dc7d0f"
     },
     "www/guide1.gif": {
       "checksum": "3497939525cffba43dcba5969f855767"
@@ -7277,7 +7289,7 @@
       "checksum": "006915c02cb057eb79c0240764b50a8e"
     },
     "www/license.html": {
-      "checksum": "3b33fe0f8034f9bcb4edc608d8df1fa2"
+      "checksum": "2cbc9562b87dcdc2c48a535a8f26f90d"
     },
     "www/Line.png": {
       "checksum": "20e01de8b0f02724da7f0681652f4613"
@@ -7322,7 +7334,7 @@
       "checksum": "e104a367ed842f1f59ed2f7b73c52b03"
     },
     "www/subplan.html": {
-      "checksum": "50e1c125ae903408fd848c6356e64e73"
+      "checksum": "f09633449f3a3bca6b83010938ebd40e"
     },
     "www/Summary.png": {
       "checksum": "263b531a5f1814f411c507439aa60407"
@@ -7331,10 +7343,10 @@
       "checksum": "b3dc29a1db57613204e203095dddbd04"
     },
     "www/trend_decomp.html": {
-      "checksum": "c6501fa07da6c41e5a738fa16c8c423c"
+      "checksum": "c9a03b14368abd579b4682595c572641"
     },
     "www/version.html": {
-      "checksum": "0e480611a7ed66edcde0ca3c7a4ab995"
+      "checksum": "20ef0db176ccc358f91d1e9b7955a0e4"
     },
     "www/Violin.png": {
       "checksum": "66ec23b1df05151d5332bf41e7bfd9ae"

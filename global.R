@@ -6,7 +6,7 @@ if (!l10n_info()[["UTF-8"]]) {
   }
 }
 
-########### global of RAISINS Growth Rate Estimation  (Single Universe: shared code in greyskull)
+########### global of RAISINS Growth Rate Estimation and Trend Analysis  (Single Universe: shared code in greyskull)
 options(shiny.maxRequestSize = 100 * 1024^2) # bounded large-file uploads: 100 MiB
 
 ##Packages----
@@ -70,15 +70,15 @@ library(shinymanager)
 ### Shared RAISINS layer: login, session kit, SSO, support, feedback, page shell----
 library(greyskull)
 
-# Everything that makes this app "Growth Rate Estimation" rather than another RAISINS module.
+# Everything that makes this app "Growth Rate Estimation and Trend Analysis" rather than another RAISINS module.
 gre_config <- raisins_app_config(
   app_id         = "gre",
-  app_name       = "Growth Rate Estimation",
+  app_name       = "Growth Rate Estimation and Trend Analysis",
   module_code    = "GRE",
   version        = "1.0.0",
   title_letters  = c("G", "R", "E"),
-  page_title     = "RAISINS: GROWTH RATE & TREND",
-  welcome_title  = "RAISINS-Growth Rate Estimation Module",
+  page_title     = "RAISINS: GROWTH RATE ESTIMATION AND TREND ANALYSIS",
+  welcome_title  = "RAISINS-Growth Rate Estimation and Trend Analysis Module",
   welcome_text   = "<p style='text-align: justify;'>
     Discover <strong>R A I S I N S</strong> (R & AI Solutions in INferential Statistics) - a tool built for
     <strong>time-series production and area data</strong>. Upload your yearly figures and instantly obtain compound growth
@@ -90,10 +90,12 @@ gre_config <- raisins_app_config(
   demo_db            = "demo/Sheet1",
   demo_video_url     = NULL,                          # no video button, as in fsQCA
   website_page       = "GRE.html",
-  # logo and navbar colour: the RAISINS defaults from greyskull, as in fsQCA
+  # logo served from www; navbar colour as in Regression
+  logo_url           = "gre_logo.png",
+  navbar_color       = "#5D2D6C",
   logout_id          = "rcbd_logout",
   subscribe_url      = "https://www.raisins.live/subscription/GRE_sub.html",
-  version_record_url = "version.html",
+  version_record_url = "https://www.raisins.live/module_record/gre.html",
   protected_tabs     = c("Analysis", "Arrange Data", "Datasets", "RA-One",
                          "Feedback", "User", "retake_tour", "View Data", "FAQs")
 )
@@ -115,6 +117,7 @@ source("dir/gre_server.R", local = TRUE)
 # Reused unchanged from RM-ANOVA: "Arrange Data" CSV creator + "Datasets" tab.
 source("dir/rcbd_gen_server.R", local = TRUE)
 source("dir/rcbd_gen_ui.R", local = TRUE)
+source("dir/gre_import.R", local = TRUE)
 source("dir/rcbd_dataset_server.R", local = TRUE)
 source("dir/rcbd_dataset_ui.R", local = TRUE)
 
@@ -124,6 +127,7 @@ source("dir/AI/chat_server.R", local = TRUE)
 source("dir/AI/gre_chat_server.R", local = TRUE)
 source("dir/AI/gre_chat_context.R", local = TRUE)
 source("dir/AI/gre_prompt.R", local = TRUE)
+source("dir/AI/gre_raone_bubble.R", local = TRUE)
 
 # Table/font styles come directly from greyskull, as in RBD.
 

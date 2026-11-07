@@ -1,5 +1,5 @@
 ## ============================================================================
-##  RAISINS Growth Rate Estimation - help behind every "?" (as in RAISINS fsQCA)
+##  RAISINS Growth Rate Estimation and Trend Analysis - help behind every "?" (as in RAISINS fsQCA)
 ##  Each topic: title, what (one or two sentences), read (short bullets).
 ##  Plain text only, so it can be edited without touching the app code.
 ## ============================================================================
@@ -18,7 +18,7 @@ GRE_HELP <- list(
     what  = "How fast each series grew per year, measured in three ways.",
     read  = c("CGR is the compound growth rate from a straight line fitted to the logarithm of the series on year. It uses every year and comes with a confidence interval and p-value.",
               "CAGR uses only the first and last observed values, so an unusual end year can move it.",
-              "Annual average is the mean of the year-to-year changes in adjacent calendar years.",
+              "The annual average growth rate (AAGR) is the mean of the year-to-year percentage changes in adjacent calendar years.",
               "Lag-1 r describes how strongly adjacent residuals are related. A large value means the CGR interval and p-value may be too optimistic.",
               "A blank rate means it cannot be calculated, usually because of zero or negative values.")),
 
@@ -26,6 +26,7 @@ GRE_HELP <- list(
     title = "Trend model comparison",
     what  = "Linear, quadratic, cubic and exponential trends fitted to each series and compared by AICc on the original scale.",
     read  = c("Lower AICc is better. Best marks the preferred model.",
+              "R-squared is the share of variation the curve explains, on the original scale. It can only rise as polynomial terms are added, so choose the model by AICc.",
               "Models within about 2 AICc units have similar support; prefer the simpler one.",
               "A good fit describes the past. It does not show why the series changed, and higher-order curves can mislead when extended beyond the data.")),
 

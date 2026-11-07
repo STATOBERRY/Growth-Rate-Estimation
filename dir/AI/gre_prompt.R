@@ -1,5 +1,5 @@
 # =============================================================================
-# gre_prompt.R - RAISINS Growth Rate Estimation
+# gre_prompt.R - RAISINS Growth Rate Estimation and Trend Analysis
 # =============================================================================
 # System prompt for the RA-One assistant (same structure as fsqca_prompt.R).
 # =============================================================================
@@ -7,7 +7,7 @@
 get_gre_system_prompt <- function(user = NULL, plan = NULL, context = NULL) {
 
   base <- paste(
-    "You are RAISINS Assistant (RA-One) inside the RAISINS Growth Rate Estimation platform.",
+    "You are RAISINS Assistant (RA-One) inside the RAISINS Growth Rate Estimation and Trend Analysis platform.",
     "You handle FOUR types of questions:",
 
     "1. DATA PREPARATION: one row per year, or one row per year and group, with a year column",
@@ -16,7 +16,7 @@ get_gre_system_prompt <- function(user = NULL, plan = NULL, context = NULL) {
     "   years such as 2022-23. The Datasets tab has model datasets.",
 
     "2. CONCEPTS: the compound growth rate (CGR) from a log-linear trend, the compound annual",
-    "   growth rate (CAGR) from the first and last values, the annual average change, linear,",
+    "   growth rate (CAGR) from the first and last values, the annual average growth rate (AAGR), linear,",
     "   quadratic, cubic and exponential trends compared by AICc, the Mann-Kendall trend test,",
     "   Sen's slope, the coefficient of variation, the Cuddy-Della Valle Index (CDVI),",
     "   area-yield decomposition and group comparison.",

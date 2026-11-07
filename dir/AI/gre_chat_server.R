@@ -1,5 +1,5 @@
 # =============================================================================
-# RA-One for Growth Rate Estimation (server). Same chat, consent, access gate, quota and
+# RA-One for Growth Rate Estimation and Trend Analysis (server). Same chat, consent, access gate, quota and
 # formatting as CRD's chat_server(); the CRD-only helpers (ANOVA plots, CRD
 # templates, replication advice, ANOVA table cards) are not used here.
 # Helpers (quota, OpenAI call, fmt_msg) are in chat_server.R.
